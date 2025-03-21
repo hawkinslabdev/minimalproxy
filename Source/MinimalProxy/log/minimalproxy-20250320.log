@@ -1,0 +1,185 @@
+2025-03-20 22:46:43.303 +01:00 [INF] ✅ Logging initialized successfully.
+2025-03-20 22:46:44.215 +01:00 [INF] No migrations were found in assembly 'MinimalProxy'. A migration needs to be added before the database can be updated.
+2025-03-20 22:46:44.238 +01:00 [INF] Acquiring an exclusive lock for migration application. See https://aka.ms/efcore-docs-migrations-lock for more information if this takes too long.
+2025-03-20 22:46:44.306 +01:00 [INF] Executed DbCommand (18ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT COUNT(*) FROM "sqlite_master" WHERE "name" = '__EFMigrationsLock' AND "type" = 'table';
+2025-03-20 22:46:44.343 +01:00 [INF] Executed DbCommand (3ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+INSERT OR IGNORE INTO "__EFMigrationsLock"("Id", "Timestamp") VALUES(1, '2025-03-20 21:46:44.334572+00:00');
+SELECT changes();
+2025-03-20 22:46:44.553 +01:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+CREATE TABLE IF NOT EXISTS "__EFMigrationsHistory" (
+    "MigrationId" TEXT NOT NULL CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY,
+    "ProductVersion" TEXT NOT NULL
+);
+2025-03-20 22:46:44.571 +01:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT COUNT(*) FROM "sqlite_master" WHERE "name" = '__EFMigrationsHistory' AND "type" = 'table';
+2025-03-20 22:46:44.580 +01:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "MigrationId", "ProductVersion"
+FROM "__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2025-03-20 22:46:44.614 +01:00 [INF] No migrations were applied. The database is already up to date.
+2025-03-20 22:46:44.624 +01:00 [INF] Executed DbCommand (2ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+DELETE FROM "__EFMigrationsLock";
+2025-03-20 22:46:44.880 +01:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT EXISTS (
+    SELECT 1
+    FROM "Tokens" AS "t")
+2025-03-20 22:46:44.921 +01:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "t"."Token"
+FROM "Tokens" AS "t"
+2025-03-20 22:46:45.226 +01:00 [INF] Now listening on: http://localhost:5213
+2025-03-20 22:46:45.237 +01:00 [INF] Application started. Press Ctrl+C to shut down.
+2025-03-20 22:46:45.246 +01:00 [INF] Hosting environment: Development
+2025-03-20 22:46:45.259 +01:00 [INF] Content root path: C:\Repository\MinimalProxy\Source\MinimalProxy
+2025-03-20 22:46:50.365 +01:00 [INF] Request starting HTTP/1.1 GET http://localhost:5213/api/600/Account - null null
+2025-03-20 22:46:50.452 +01:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT COUNT(*) FROM "sqlite_master" WHERE "type" = 'table' AND "rootpage" IS NOT NULL;
+2025-03-20 22:46:50.484 +01:00 [INF] No migrations were found in assembly 'MinimalProxy'. A migration needs to be added before the database can be updated.
+2025-03-20 22:46:50.497 +01:00 [INF] Acquiring an exclusive lock for migration application. See https://aka.ms/efcore-docs-migrations-lock for more information if this takes too long.
+2025-03-20 22:46:50.504 +01:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT COUNT(*) FROM "sqlite_master" WHERE "name" = '__EFMigrationsLock' AND "type" = 'table';
+2025-03-20 22:46:50.516 +01:00 [INF] Executed DbCommand (2ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+INSERT OR IGNORE INTO "__EFMigrationsLock"("Id", "Timestamp") VALUES(1, '2025-03-20 21:46:50.5148522+00:00');
+SELECT changes();
+2025-03-20 22:46:50.542 +01:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+CREATE TABLE IF NOT EXISTS "__EFMigrationsHistory" (
+    "MigrationId" TEXT NOT NULL CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY,
+    "ProductVersion" TEXT NOT NULL
+);
+2025-03-20 22:46:50.551 +01:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT COUNT(*) FROM "sqlite_master" WHERE "name" = '__EFMigrationsHistory' AND "type" = 'table';
+2025-03-20 22:46:50.565 +01:00 [INF] Executed DbCommand (1ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "MigrationId", "ProductVersion"
+FROM "__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2025-03-20 22:46:50.577 +01:00 [INF] No migrations were applied. The database is already up to date.
+2025-03-20 22:46:50.590 +01:00 [INF] Executed DbCommand (4ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+DELETE FROM "__EFMigrationsLock";
+2025-03-20 22:46:50.609 +01:00 [INF] Executing endpoint '/api/{env}/{**catchall}'
+2025-03-20 22:46:50.679 +01:00 [INF] Start processing HTTP request GET http://localhost:8020/services/Exact.Entity.REST.EG/Account
+2025-03-20 22:46:50.689 +01:00 [INF] Sending HTTP request GET http://localhost:8020/services/Exact.Entity.REST.EG/Account
+2025-03-20 22:46:50.799 +01:00 [INF] Received HTTP response headers after 102.4034ms - 401
+2025-03-20 22:46:50.813 +01:00 [INF] End processing HTTP request after 154.9451ms - 401
+2025-03-20 22:46:50.841 +01:00 [INF] Executed endpoint '/api/{env}/{**catchall}'
+2025-03-20 22:46:50.874 +01:00 [INF] Request finished HTTP/1.1 GET http://localhost:5213/api/600/Account - 401 null null 497.8805ms
+2025-03-20 22:46:57.737 +01:00 [INF] Application is shutting down...
+2025-03-20 22:47:15.099 +01:00 [INF] ✅ Logging initialized successfully.
+2025-03-20 22:47:16.028 +01:00 [INF] No migrations were found in assembly 'MinimalProxy'. A migration needs to be added before the database can be updated.
+2025-03-20 22:47:16.084 +01:00 [INF] Executed DbCommand (17ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+PRAGMA journal_mode = 'wal';
+2025-03-20 22:47:16.107 +01:00 [INF] Acquiring an exclusive lock for migration application. See https://aka.ms/efcore-docs-migrations-lock for more information if this takes too long.
+2025-03-20 22:47:16.138 +01:00 [INF] Executed DbCommand (19ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT COUNT(*) FROM "sqlite_master" WHERE "name" = '__EFMigrationsLock' AND "type" = 'table';
+2025-03-20 22:47:16.162 +01:00 [INF] Executed DbCommand (11ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+CREATE TABLE IF NOT EXISTS "__EFMigrationsLock" (
+    "Id" INTEGER NOT NULL CONSTRAINT "PK___EFMigrationsLock" PRIMARY KEY,
+    "Timestamp" TEXT NOT NULL
+);
+2025-03-20 22:47:16.178 +01:00 [INF] Executed DbCommand (3ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+INSERT OR IGNORE INTO "__EFMigrationsLock"("Id", "Timestamp") VALUES(1, '2025-03-20 21:47:16.1753506+00:00');
+SELECT changes();
+2025-03-20 22:47:16.403 +01:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+CREATE TABLE IF NOT EXISTS "__EFMigrationsHistory" (
+    "MigrationId" TEXT NOT NULL CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY,
+    "ProductVersion" TEXT NOT NULL
+);
+2025-03-20 22:47:16.422 +01:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT COUNT(*) FROM "sqlite_master" WHERE "name" = '__EFMigrationsHistory' AND "type" = 'table';
+2025-03-20 22:47:16.436 +01:00 [INF] Executed DbCommand (1ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "MigrationId", "ProductVersion"
+FROM "__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2025-03-20 22:47:16.455 +01:00 [INF] No migrations were applied. The database is already up to date.
+2025-03-20 22:47:16.470 +01:00 [INF] Executed DbCommand (7ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+DELETE FROM "__EFMigrationsLock";
+2025-03-20 22:47:16.783 +01:00 [ERR] Failed executing DbCommand (1ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT EXISTS (
+    SELECT 1
+    FROM "Tokens" AS "t")
+2025-03-20 22:47:16.849 +01:00 [ERR] An exception occurred while iterating over the results of a query for context type 'AuthDbContext'.
+Microsoft.Data.Sqlite.SqliteException (0x80004005): SQLite Error 1: 'no such table: Tokens'.
+   at Microsoft.Data.Sqlite.SqliteException.ThrowExceptionForRC(Int32 rc, sqlite3 db)
+   at Microsoft.Data.Sqlite.SqliteCommand.PrepareAndEnumerateStatements()+MoveNext()
+   at Microsoft.Data.Sqlite.SqliteCommand.GetStatements()+MoveNext()
+   at Microsoft.Data.Sqlite.SqliteDataReader.NextResult()
+   at Microsoft.Data.Sqlite.SqliteCommand.ExecuteReader(CommandBehavior behavior)
+   at Microsoft.Data.Sqlite.SqliteCommand.ExecuteDbDataReader(CommandBehavior behavior)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReader(RelationalCommandParameterObject parameterObject)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.Enumerator.InitializeReader(Enumerator enumerator)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.Enumerator.<>c.<MoveNext>b__21_0(DbContext _, Enumerator enumerator)
+   at Microsoft.EntityFrameworkCore.Storage.NonRetryingExecutionStrategy.Execute[TState,TResult](TState state, Func`3 operation, Func`3 verifySucceeded)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.Enumerator.MoveNext()
+Microsoft.Data.Sqlite.SqliteException (0x80004005): SQLite Error 1: 'no such table: Tokens'.
+   at Microsoft.Data.Sqlite.SqliteException.ThrowExceptionForRC(Int32 rc, sqlite3 db)
+   at Microsoft.Data.Sqlite.SqliteComm2025-03-20 22:49:28.322 +01:00 [INF] ✅ Logging initialized successfully.
+2025-03-20 22:49:29.414 +01:00 [INF] No migrations were found in assembly 'MinimalProxy'. A migration needs to be added before the database can be updated.
+2025-03-20 22:49:29.455 +01:00 [INF] Acquiring an exclusive lock for migration application. See https://aka.ms/efcore-docs-migrations-lock for more information if this takes too long.
+2025-03-20 22:49:29.586 +01:00 [INF] Executed DbCommand (44ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT COUNT(*) FROM "sqlite_master" WHERE "name" = '__EFMigrationsLock' AND "type" = 'table';
+2025-03-20 22:49:29.621 +01:00 [INF] Executed DbCommand (9ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+INSERT OR IGNORE INTO "__EFMigrationsLock"("Id", "Timestamp") VALUES(1, '2025-03-20 21:49:29.6081023+00:00');
+SELECT changes();
+2025-03-20 22:49:29.999 +01:00 [INF] Executed DbCommand (1ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+CREATE TABLE IF NOT EXISTS "__EFMigrationsHistory" (
+    "MigrationId" TEXT NOT NULL CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY,
+    "ProductVersion" TEXT NOT NULL
+);
+2025-03-20 22:49:30.023 +01:00 [INF] Executed DbCommand (3ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT COUNT(*) FROM "sqlite_master" WHERE "name" = '__EFMigrationsHistory' AND "type" = 'table';
+2025-03-20 22:49:30.049 +01:00 [INF] Executed DbCommand (2ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "MigrationId", "ProductVersion"
+FROM "__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2025-03-20 22:49:30.103 +01:00 [INF] No migrations were applied. The database is already up to date.
+2025-03-20 22:49:30.113 +01:00 [INF] Executed DbCommand (1ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+DELETE FROM "__EFMigrationsLock";
+2025-03-20 22:49:30.427 +01:00 [ERR] Failed executing DbCommand (1ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT EXISTS (
+    SELECT 1
+    FROM "Tokens" AS "t")
+2025-03-20 22:49:30.472 +01:00 [ERR] An exception occurred while iterating over the results of a query for context type 'AuthDbContext'.
+Microsoft.Data.Sqlite.SqliteException (0x80004005): SQLite Error 1: 'no such table: Tokens'.
+   at Microsoft.Data.Sqlite.SqliteException.ThrowExceptionForRC(Int32 rc, sqlite3 db)
+   at Microsoft.Data.Sqlite.SqliteCommand.PrepareAndEnumerateStatements()+MoveNext()
+   at Microsoft.Data.Sqlite.SqliteCommand.GetStatements()+MoveNext()
+   at Microsoft.Data.Sqlite.SqliteDataReader.NextResult()
+   at Microsoft.Data.Sqlite.SqliteCommand.ExecuteReader(CommandBehavior behavior)
+   at Microsoft.Data.Sqlite.SqliteCommand.ExecuteDbDataReader(CommandBehavior behavior)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReader(RelationalCommandParameterObject parameterObject)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.Enumerator.InitializeReader(Enumerator enumerator)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.Enumerator.<>c.<MoveNext>b__21_0(DbContext _, Enumerator enumerator)
+   at Microsoft.EntityFrameworkCore.Storage.NonRetryingExecutionStrategy.Execute[TState,TResult](TState state, Func`3 operation, Func`3 verifySucceeded)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.Enumerator.MoveNext()
+Microsoft.Data.Sqlite.SqliteException (0x80004005): SQLite Error 1: 'no such table: Tokens'.
+   at Microsoft.Data.Sqlite.SqliteException.ThrowExceptionForRC(Int32 rc, sqlite3 db)
+   at Microsoft.Data.Sqlite.SqliteCommand.PrepareAndEnumerateStatements()+MoveNext()
+   at Microsoft.Data.Sqlite.SqliteCommand.GetStatements()+MoveNext()
+   at Microsoft.Data.Sqlite.SqliteDataReader.NextResult()
+   at Microsoft.Data.Sqlite.SqliteCommand.ExecuteReader(CommandBehavior behavior)
+   at Microsoft.Data.Sqlite.SqliteCommand.ExecuteDbDataReader(CommandBehavior behavior)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReader(RelationalCo2025-03-20 22:51:41.047 +01:00 [INF] ✅ Logging initialized successfully.
+2025-03-20 22:51:41.904 +01:00 [INF] Executed DbCommand (11ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT COUNT(*) FROM "sqlite_master" WHERE "type" = 'table' AND "rootpage" IS NOT NULL;
+2025-03-20 22:51:41.938 +01:00 [INF] Executed DbCommand (4ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+CREATE TABLE IF NOT EXISTS Tokens (Id INTEGER PRIMARY KEY AUTOINCREMENT, Token TEXT NOT NULL UNIQUE, CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP)
+2025-03-20 22:51:42.323 +01:00 [INF] Executed DbCommand (0ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT EXISTS (
+    SELECT 1
+    FROM "Tokens" AS "t")
+2025-03-20 22:51:42.475 +01:00 [INF] Executed DbCommand (3ms) [Parameters=[@p0='?' (Size = 36)], CommandType='"Text"', CommandTimeout='30']
+INSERT INTO "Tokens" ("Token")
+VALUES (@p0)
+RETURNING "Id";
+2025-03-20 22:51:42.760 +01:00 [INF] Now listening on: http://localhost:5213
+2025-03-20 22:51:42.772 +01:00 [INF] Application started. Press Ctrl+C to shut down.
+2025-03-20 22:51:42.784 +01:00 [INF] Hosting environment: Development
+2025-03-20 22:51:42.792 +01:00 [INF] Content root path: C:\Repository\MinimalProxy\Source\MinimalProxy
+2025-03-20 22:51:50.451 +01:00 [INF] Request starting HTTP/1.1 GET http://localhost:5213/api/600/Account - null null
+2025-03-20 22:51:50.497 +01:00 [INF] Executing endpoint '/api/{env}/{**catchall}'
+2025-03-20 22:51:50.544 +01:00 [INF] Start processing HTTP request GET http://localhost:8020/services/Exact.Entity.REST.EG/Account
+2025-03-20 22:51:50.556 +01:00 [INF] Sending HTTP request GET http://localhost:8020/services/Exact.Entity.REST.EG/Account
+2025-03-20 22:51:50.663 +01:00 [INF] Received HTTP response headers after 88.5983ms - 401
+2025-03-20 22:51:50.678 +01:00 [INF] End processing HTTP request after 147.5641ms - 401
+2025-03-20 22:51:50.707 +01:00 [INF] Executed endpoint '/api/{env}/{**catchall}'
+2025-03-20 22:51:50.714 +01:00 [INF] Request finished HTTP/1.1 GET http://localhost:5213/api/600/Account - 401 null null 264.6722ms
+2025-03-20 22:51:53.032 +01:00 [INF] Application is shutting down...
