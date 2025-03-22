@@ -9,6 +9,7 @@ A lightweight, environment-aware reverse proxy for .NET (ASP.NET Core), with Bea
 
 - ✅ Simple API Gateway for internal/external services
 - 🔐 Bearer Token Authentication (stored in local SQLite)
+- 🚀 Swagger documentation (incl. environment, endpoint and methods)
 - 🌍 Environment-based endpoint routing (e.g. `/api/dev/accounts`)
 - 🔄 Proxy forwarding for all HTTP methods with header + body support
 - ✍️ Automatic URL rewriting for XML and JSON responses
