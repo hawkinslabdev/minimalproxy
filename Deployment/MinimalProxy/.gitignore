@@ -1,7 +1,3 @@
-bin/
-obj/
-log/
-*.bat
 *.db
 *.db-shm
 *.db-wal
