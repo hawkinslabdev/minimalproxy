@@ -1,4 +1,4 @@
-# 🌐 Minimal Proxy for Exact Globe Plus
+# 🌐 Minimal Proxy for internal webservices
 
 A lightweight, easy-to-deploy proxy for Exact Globe Plus services. Provides secure access to your Exact services through a modern API gateway with multiple environment support.
 
