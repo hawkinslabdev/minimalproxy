@@ -1,6 +1,7 @@
 bin/
 obj/
 log/
+tokens/
 *.bat
 *.db
 *.db-shm

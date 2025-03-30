@@ -54,6 +54,7 @@ builder.Logging.AddSimpleConsole(options => options.TimestampFormat = "[yyyy-MM-
 // Configure SQLite Authentication Database
 var dbPath = Path.Combine(Directory.GetCurrentDirectory(), "auth.db");
 builder.Services.AddDbContext<AuthDbContext>(options => options.UseSqlite($"Data Source={dbPath}"));
+builder.Services.AddScoped<TokenService>();
 builder.Services.AddAuthorization();
 
 builder.Services.AddHttpClient("ProxyClient")
@@ -99,23 +100,27 @@ app.UseSwaggerUI(c =>
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
+    var tokenService = scope.ServiceProvider.GetRequiredService<TokenService>();
 
     try
     {
+        // Set up database and migrate if needed
         context.Database.EnsureCreated();
         context.EnsureTablesCreated();
 
-        if (!context.Tokens.Any())
+        // Create a default token if none exist
+        var activeTokens = await tokenService.GetActiveTokensAsync();
+        if (!activeTokens.Any())
         {
-            var token = new AuthToken { Token = Guid.NewGuid().ToString() };
-            context.Tokens.Add(token);
-            context.SaveChanges();
-            Log.Debug("🗝️ Generated token: {Token}", token.Token);
+            var token = await tokenService.GenerateTokenAsync(serverName);
+            Log.Information("🗝️ Generated new default token for {ServerName}", serverName);
+            Log.Information("🔑 Token: {Token}", token);
+            Log.Information("📁 Token has been saved to tokens/{ServerName}.txt", serverName);
         }
         else
         {
-            var tokens = context.Tokens.Select(t => t.Token).ToList();
-            Log.Debug("Existing tokens: {Tokens}", string.Join(", ", tokens));
+            Log.Information("✅ Using existing tokens. Total active tokens: {Count}", activeTokens.Count());
+            Log.Information("📁 Tokens are available in the tokens directory");
         }
     }
     catch (Exception ex)
@@ -124,7 +129,7 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-// Middleware to (bypass) authenticate/authentication
+// Authentication middleware
 app.Use(async (context, next) =>
 {
     Log.Debug("Request Path: {Path}", context.Request.Path);
@@ -143,7 +148,7 @@ app.Use(async (context, next) =>
         return;
     }
     
-    // Continue with existing authentication logic
+    // Continue with authentication logic
     Log.Information("➡️ [{Timestamp}] Incoming request: {Path}", DateTime.UtcNow, context.Request.Path);
 
     if (!context.Request.Headers.TryGetValue("Authorization", out var providedToken))
@@ -155,34 +160,29 @@ app.Use(async (context, next) =>
     }
 
     string tokenString = providedToken.ToString();
-    Log.Debug("🔍 Received token: {Token}", tokenString);
-
+    
+    // Extract the token from "Bearer token"
     if (tokenString.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
     {
         tokenString = tokenString.Substring("Bearer ".Length).Trim();
     }
 
     using var scope = app.Services.CreateScope();
-    var dbContext = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
+    var tokenService = scope.ServiceProvider.GetRequiredService<TokenService>();
 
-    dbContext.Database.EnsureCreated();
-
-    var storedTokens = dbContext.Tokens.Select(t => t.Token).ToList();
-    Log.Debug("🔑 Stored tokens: {Tokens}", string.Join(", ", storedTokens));
-
-    bool isValid = storedTokens.Any(t => string.Equals(t, tokenString, StringComparison.OrdinalIgnoreCase));
+    // Validate token
+    bool isValid = await tokenService.VerifyTokenAsync(tokenString);
 
     if (!isValid)
     {
-        Log.Warning("❌ Invalid token: {Token}", tokenString);
+        Log.Warning("❌ Invalid token provided");
         context.Response.StatusCode = 403;
         await context.Response.WriteAsJsonAsync(new { error = "Forbidden" });
         return;
     }
 
-    Log.Information("✅ Authorized request with valid token.");
+    Log.Information("✅ Authorized request with valid token");
     await next();
-
 });
 
 // Load environments from /environments/settings.json
