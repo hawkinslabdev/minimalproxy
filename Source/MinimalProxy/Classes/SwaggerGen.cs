@@ -71,15 +71,44 @@ public class DynamicEndpointDocumentFilter : IDocumentFilter
                     Description = $"Environment to target. Allowed values: {string.Join(", ", allowedEnvironments)}"
                 });
 
-                // Add optional subpath parameter
-                operation.Parameters.Add(new OpenApiParameter
+                // Add OData style query parameters for GET requests
+                if (method.Equals("GET", StringComparison.OrdinalIgnoreCase))
                 {
-                    Name = "subpath",
-                    In = ParameterLocation.Query,
-                    Required = false,
-                    Schema = new OpenApiSchema { Type = "string" },
-                    Description = "Optional additional path segments to append to the endpoint URL"
-                });
+                    // Add $select parameter
+                    operation.Parameters.Add(new OpenApiParameter
+                    {
+                        Name = "$select",
+                        In = ParameterLocation.Query,
+                        Required = false,
+                        Schema = new OpenApiSchema { Type = "string" },
+                        Description = "Select specific fields (comma-separated list of property names)"
+                    });
+
+                    // Add $top parameter with default value
+                    operation.Parameters.Add(new OpenApiParameter
+                    {
+                        Name = "$top",
+                        In = ParameterLocation.Query,
+                        Required = false,
+                        Schema = new OpenApiSchema { 
+                            Type = "integer", 
+                            Default = new OpenApiInteger(10),
+                            Minimum = 1,
+                            Maximum = 1000
+                        },
+                        Description = "Limit the number of results returned (default: 10, max: 1000)"
+                    });
+
+                    // Add $filter parameter
+                    operation.Parameters.Add(new OpenApiParameter
+                    {
+                        Name = "$filter",
+                        In = ParameterLocation.Query,
+                        Required = false,
+                        Schema = new OpenApiSchema { Type = "string" },
+                        Description = "Filter the results based on a condition (e.g., Name eq 'Value')"
+                    });
+                }
 
                 // Add example response
                 operation.Responses = new OpenApiResponses

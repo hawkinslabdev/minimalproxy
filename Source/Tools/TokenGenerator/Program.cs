@@ -1,9 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 
@@ -24,19 +27,34 @@ namespace TokenGenerator
 
         public DbSet<AuthToken> Tokens { get; set; }
 
-        // This method checks if the database was properly created by the main app
+        
         public bool IsValidDatabase()
         {
             try
             {
-                // Try to query the Tokens table - this will throw if the table doesn't exist
+                
                 return Tokens.Any();
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                Log.Warning(ex, "Database validation failed");
                 return false;
             }
         }
+    }
+
+    public class CommandLineOptions
+    {
+        public string? DatabasePath { get; set; }
+        public string? TokensFolder { get; set; }
+        public string? Username { get; set; }
+        public bool ShowHelp { get; set; }
+    }
+
+    public class AppConfig
+    {
+        public string DatabasePath { get; set; } = "auth.db";
+        public string TokensFolder { get; set; } = "tokens";
     }
 
     public class TokenService
@@ -44,14 +62,19 @@ namespace TokenGenerator
         private readonly AuthDbContext _dbContext;
         private readonly string _tokenFolderPath;
 
-        public TokenService(AuthDbContext dbContext)
+        public TokenService(AuthDbContext dbContext, AppConfig config)
         {
             _dbContext = dbContext;
-            _tokenFolderPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "tokens");
+            
+            
+            _tokenFolderPath = !Path.IsPathRooted(config.TokensFolder) 
+                ? Path.GetFullPath(config.TokensFolder) 
+                : config.TokensFolder;
             
             if (!Directory.Exists(_tokenFolderPath))
             {
                 Directory.CreateDirectory(_tokenFolderPath);
+                Log.Information("Created tokens directory at {Path}", _tokenFolderPath);
             }
         }
         
@@ -93,7 +116,7 @@ namespace TokenGenerator
                 return false;
             }
 
-            // Delete the token file if it exists
+            
             string filePath = Path.Combine(_tokenFolderPath, $"{token.Username}.txt");
             if (File.Exists(filePath))
             {
@@ -101,7 +124,7 @@ namespace TokenGenerator
                 Log.Information("Deleted token file for {Username}", token.Username);
             }
 
-            // Remove from database
+            
             _dbContext.Tokens.Remove(token);
             await _dbContext.SaveChangesAsync();
             return true;
@@ -130,13 +153,20 @@ namespace TokenGenerator
         {
             try
             {
+                
+                if (!Directory.Exists(_tokenFolderPath))
+                {
+                    Directory.CreateDirectory(_tokenFolderPath);
+                    Log.Information("Created tokens directory at {Path}", _tokenFolderPath);
+                }
+                
                 string filePath = Path.Combine(_tokenFolderPath, $"{username}.txt");
                 await File.WriteAllTextAsync(filePath, token);
                 Log.Information("Token file saved to {FilePath}", filePath);
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Failed to save token file for user {Username}", username);
+                Log.Error(ex, "Failed to save token file for user {Username} at {Path}", username, _tokenFolderPath);
                 throw;
             }
         }
@@ -146,44 +176,51 @@ namespace TokenGenerator
     {
         static async Task Main(string[] args)
         {
-            // Configure logging
+            
+            var options = ParseCommandLineArguments(args);
+            
+            
+            if (options.ShowHelp)
+            {
+                DisplayHelp();
+                return;
+            }
+
+            
             Log.Logger = new LoggerConfiguration()
                 .WriteTo.Console()
+                .MinimumLevel.Information()
                 .CreateLogger();
 
             Log.Information("Starting Token Generator...");
 
             try
             {
-                var serviceProvider = ConfigureServices();
+                var (serviceProvider, config) = ConfigureServices(options);
                 
                 using (var scope = serviceProvider.CreateScope())
                 {
                     var dbContext = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
                     
-                    var dbPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "auth.db");
-                    if (!File.Exists(dbPath))
+                    Log.Information("Using database at: {DbPath}", config.DatabasePath);
+                    
+                    if (!File.Exists(config.DatabasePath))
                     {
-                        DisplayErrorAndExit("Database not found. Please run the main application first.");
+                        DisplayErrorAndExit($"Database not found at {config.DatabasePath}. Please run the main application first or configure the correct path using -d or --database parameter or in appsettings.json.");
                         return;
                     }
                     
                     if (!dbContext.IsValidDatabase())
                     {
-                        DisplayErrorAndExit("Invalid database structure. Please run the main application first.");
-                        return;
-                    }
-                    
-                    if (!dbContext.Tokens.Any())
-                    {
-                        DisplayErrorAndExit("No tokens found in database. Please run the main application first to create an initial token.");
+                        DisplayErrorAndExit($"Invalid database structure at {config.DatabasePath}. Please run the main application first.");
                         return;
                     }
                 }
 
-                if (args.Length > 0 && !string.IsNullOrWhiteSpace(args[0]))
+                
+                if (!string.IsNullOrWhiteSpace(options.Username))
                 {
-                    await GenerateTokenForUserAsync(args[0], serviceProvider);
+                    await GenerateTokenForUserAsync(options.Username, serviceProvider);
                     return;
                 }
 
@@ -226,6 +263,31 @@ namespace TokenGenerator
                 Log.Error(ex, "An error occurred: {ErrorMessage}", ex.Message);
                 DisplayErrorAndExit($"An error occurred: {ex.Message}");
             }
+            finally
+            {
+                Log.CloseAndFlush();
+            }
+        }
+
+        static void DisplayHelp()
+        {
+            Console.WriteLine("MinimalProxy Token Generator");
+            Console.WriteLine("===========================");
+            Console.WriteLine("A utility to manage authentication tokens for the MinimalProxy service.");
+            Console.WriteLine();
+            Console.WriteLine("Usage:");
+            Console.WriteLine("  TokenGenerator.exe [options] [username]");
+            Console.WriteLine();
+            Console.WriteLine("Options:");
+            Console.WriteLine("  -h, --help                 Show this help message");
+            Console.WriteLine("  -d, --database <path>      Specify the path to the auth.db file");
+            Console.WriteLine("  -t, --tokens <path>        Specify the folder to store token files");
+            Console.WriteLine();
+            Console.WriteLine("Examples:");
+            Console.WriteLine("  TokenGenerator.exe                           Run in interactive mode");
+            Console.WriteLine("  TokenGenerator.exe -d \"C:\\path\\to\\auth.db\"   Use specific database file");
+            Console.WriteLine("  TokenGenerator.exe admin                     Generate token for user 'admin'");
+            Console.WriteLine("  TokenGenerator.exe -d \"..\\auth.db\" admin      Generate token with custom DB path");
         }
 
         static void DisplayErrorAndExit(string errorMessage)
@@ -237,11 +299,55 @@ namespace TokenGenerator
             Console.ReadKey();
             Environment.Exit(1);
         }
+        
+        static CommandLineOptions ParseCommandLineArguments(string[] args)
+        {
+            var options = new CommandLineOptions();
+            
+            for (int i = 0; i < args.Length; i++)
+            {
+                string arg = args[i].ToLowerInvariant();
+                
+                switch (arg)
+                {
+                    case "-h":
+                    case "--help":
+                        options.ShowHelp = true;
+                        return options;
+                        
+                    case "-d":
+                    case "--database":
+                        if (i + 1 < args.Length)
+                        {
+                            options.DatabasePath = args[++i];
+                        }
+                        break;
+                        
+                    case "-t":
+                    case "--tokens":
+                        if (i + 1 < args.Length)
+                        {
+                            options.TokensFolder = args[++i];
+                        }
+                        break;
+                        
+                    default:
+                        
+                        if (!arg.StartsWith("-") && string.IsNullOrWhiteSpace(options.Username))
+                        {
+                            options.Username = args[i];
+                        }
+                        break;
+                }
+            }
+            
+            return options;
+        }
 
         static void DisplayMenu()
         {
             Console.WriteLine("===============================================");
-            Console.WriteLine("      MinimalSQLReader Token Generator        ");
+            Console.WriteLine("      MinimalProxy Token Generator        ");
             Console.WriteLine("===============================================");
             Console.WriteLine("1. List all existing tokens");
             Console.WriteLine("2. Generate new token");
@@ -268,9 +374,15 @@ namespace TokenGenerator
             Console.WriteLine($"{"ID",-5} {"Username",-20} {"Created",-20} {"Token File",-15}");
             Console.WriteLine(new string('-', 60));
 
+            var config = scope.ServiceProvider.GetRequiredService<AppConfig>();
+            var tokenService = scope.ServiceProvider.GetRequiredService<TokenService>();
+            
             foreach (var token in tokens)
             {
-                string tokenFilePath = Path.Combine(Directory.GetCurrentDirectory(), "tokens", $"{token.Username}.txt");
+                
+                string tokenFolderPath = typeof(TokenService).GetField("_tokenFolderPath", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(tokenService) as string ?? config.TokensFolder;
+                
+                string tokenFilePath = Path.Combine(tokenFolderPath, $"{token.Username}.txt");
                 string tokenFileStatus = File.Exists(tokenFilePath) ? "Available" : "Missing";
 
                 Console.WriteLine($"{token.Id,-5} {token.Username,-20} {token.CreatedAt.ToString("yyyy-MM-dd HH:mm"),-20} {tokenFileStatus,-15}");
@@ -286,6 +398,7 @@ namespace TokenGenerator
 
             using var scope = serviceProvider.CreateScope();
             var tokenService = scope.ServiceProvider.GetRequiredService<TokenService>();
+            var config = scope.ServiceProvider.GetRequiredService<AppConfig>();
 
             try
             {
@@ -295,7 +408,11 @@ namespace TokenGenerator
                 Console.WriteLine("\n--- Token Generated Successfully ---");
                 Console.WriteLine($"Username: {username}");
                 Console.WriteLine($"Token: {token}");
-                Console.WriteLine($"Token file: {Path.Combine(Directory.GetCurrentDirectory(), "tokens", $"{username}.txt")}");
+                
+                var service = scope.ServiceProvider.GetRequiredService<TokenService>();
+                string tokenFolderPath = typeof(TokenService).GetField("_tokenFolderPath", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(service) as string ?? config.TokensFolder;
+                
+                Console.WriteLine($"Token file: {Path.Combine(tokenFolderPath, $"{username}.txt")}");
             }
             catch (Exception ex)
             {
@@ -306,7 +423,7 @@ namespace TokenGenerator
 
         static async Task RevokeTokenAsync(IServiceProvider serviceProvider)
         {
-            // First list all tokens
+            
             await ListAllTokensAsync(serviceProvider);
 
             Console.WriteLine("\n=== Revoke Token ===");
@@ -341,6 +458,7 @@ namespace TokenGenerator
             {                
                 using var scope = serviceProvider.CreateScope();
                 var tokenService = scope.ServiceProvider.GetRequiredService<TokenService>();
+                var config = scope.ServiceProvider.GetRequiredService<AppConfig>();
 
                 Log.Information("Generating token for user: {Username}", username);
                 var token = await tokenService.GenerateTokenAsync(username);
@@ -348,7 +466,7 @@ namespace TokenGenerator
                 Log.Information("Token generation successful!");
                 Log.Information("Username: {Username}", username);
                 Log.Information("Token: {Token}", token);
-                Log.Information("Token file: {FilePath}", Path.Combine(Directory.GetCurrentDirectory(), "tokens", $"{username}.txt"));
+                Log.Information("Token file: {FilePath}", Path.GetFullPath(Path.Combine(config.TokensFolder, $"{username}.txt")));
             }
             catch (Exception ex)
             {
@@ -357,18 +475,131 @@ namespace TokenGenerator
             }
         }
 
-        static IServiceProvider ConfigureServices()
+        static (IServiceProvider ServiceProvider, AppConfig Config) ConfigureServices(CommandLineOptions cliOptions)
         {
             var services = new ServiceCollection();
+            var config = LoadConfiguration();
             
-            var dbPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "auth.db");
+            
+            if (!string.IsNullOrWhiteSpace(cliOptions.DatabasePath))
+            {
+                config.DatabasePath = cliOptions.DatabasePath;
+                Log.Information("Using database path from command line: {Path}", config.DatabasePath);
+            }
+            
+            if (!string.IsNullOrWhiteSpace(cliOptions.TokensFolder))
+            {
+                config.TokensFolder = cliOptions.TokensFolder;
+                Log.Information("Using tokens folder from command line: {Path}", config.TokensFolder);
+            }
+            
+            
+            services.AddSingleton(config);
+            
+            
+            if (!Path.IsPathRooted(config.DatabasePath))
+            {
+                config.DatabasePath = Path.GetFullPath(config.DatabasePath);
+            }
+            
+            if (!Path.IsPathRooted(config.TokensFolder))
+            {
+                config.TokensFolder = Path.GetFullPath(config.TokensFolder);
+            }
+            
+            
+            if (!Directory.Exists(config.TokensFolder))
+            {
+                Directory.CreateDirectory(config.TokensFolder);
+                Log.Information("Created tokens directory at {Path}", config.TokensFolder);
+            }
+            
+            Log.Information("Database path: {DbPath}", config.DatabasePath);
+            Log.Information("Tokens folder: {TokensFolder}", config.TokensFolder);
             
             services.AddDbContext<AuthDbContext>(options =>
-                options.UseSqlite($"Data Source={dbPath}"));
+                options.UseSqlite($"Data Source={config.DatabasePath}"));
 
             services.AddScoped<TokenService>();
             
-            return services.BuildServiceProvider();
+            return (services.BuildServiceProvider(), config);
+        }
+        
+        static AppConfig LoadConfiguration()
+        {
+            var config = new AppConfig();
+            string configFileName = "appsettings.json";
+            string configFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, configFileName);
+            
+            
+            if (!File.Exists(configFilePath))
+            {
+                Log.Information("Configuration file not found. Creating default configuration.");
+                CreateDefaultConfig(configFilePath);
+            }
+            
+            try
+            {
+                var configJson = File.ReadAllText(configFilePath);
+                var configValues = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(configJson);
+                
+                if (configValues != null)
+                {
+                    if (configValues.TryGetValue("DatabasePath", out var dbPathElement) && 
+                        dbPathElement.ValueKind == JsonValueKind.String)
+                    {
+                        config.DatabasePath = dbPathElement.GetString() ?? "auth.db";
+                    }
+                    
+                    if (configValues.TryGetValue("TokensFolder", out var tokensFolderElement) && 
+                        tokensFolderElement.ValueKind == JsonValueKind.String)
+                    {
+                        config.TokensFolder = tokensFolderElement.GetString() ?? "tokens";
+                    }
+                }
+                
+                Log.Information("Configuration loaded successfully.");
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Error loading configuration. Using default values.");
+            }
+            
+            
+            if (!Path.IsPathRooted(config.TokensFolder))
+            {
+                config.TokensFolder = Path.GetFullPath(config.TokensFolder);
+            }
+            
+            return config;
+        }
+        
+        static void CreateDefaultConfig(string configFilePath)
+        {
+            
+            var directory = Path.GetDirectoryName(configFilePath);
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+            
+            var defaultConfig = new AppConfig
+            {
+                DatabasePath = "../../auth.db",  
+                TokensFolder = "tokens"       
+            };
+            
+            try
+            {
+                var jsonOptions = new JsonSerializerOptions { WriteIndented = true };
+                string json = JsonSerializer.Serialize(defaultConfig, jsonOptions);
+                File.WriteAllText(configFilePath, json);
+                Log.Information("Created default configuration file at {Path}", configFilePath);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to create default configuration file");
+            }
         }
     }
 }

@@ -32,7 +32,7 @@ Log.Logger = new LoggerConfiguration()
          logEvent.Properties["RequestPath"].ToString().Contains("/index.html")))
     .CreateLogger();
 
-Log.Information("✅ Logging initialized successfully.");
+Log.Information("✅ Logging initialized successfully");
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseSerilog();
@@ -114,7 +114,6 @@ using (var scope = app.Services.CreateScope())
         {
             var token = await tokenService.GenerateTokenAsync(serverName);
             Log.Information("🗝️ Generated new default token for {ServerName}", serverName);
-            Log.Information("🔑 Token: {Token}", token);
             Log.Information("📁 Token has been saved to tokens/{ServerName}.txt", serverName);
         }
         else
@@ -488,6 +487,27 @@ string RewriteUrl(string content, string originalHost, string originalPath, stri
     }
 }
 
+var urls = app.Urls;
+if (urls != null && urls.Any())
+{
+    Log.Information("🌐 Application is hosted on the following URLs:");
+    foreach (var url in urls)
+    {
+        Log.Information("   {Url}", url);
+    }
+}
+else
+{
+    var serverUrls = Environment.GetEnvironmentVariable("ASPNETCORE_URLS") 
+        ?? builder.Configuration["Kestrel:Endpoints:Http:Url"] 
+        ?? builder.Configuration["urls"]
+        ?? "http://localhost:5000";
+    
+    Log.Information("🌐 Application is hosted on: {Urls}", serverUrls);
+}
+
+// Now start the application
+app.Run();
 try
 {
     app.Run();

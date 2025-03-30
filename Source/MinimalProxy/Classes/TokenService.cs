@@ -21,7 +21,7 @@ public class TokenService
         if (!Directory.Exists(_tokenFolderPath))
         {
             Directory.CreateDirectory(_tokenFolderPath);
-            Log.Information("✅ Created tokens directory: {Directory}", _tokenFolderPath);
+            Log.Debug("✅ Created tokens directory: {Directory}", _tokenFolderPath);
         }
     }
     
@@ -139,7 +139,7 @@ public class TokenService
         {
             string filePath = Path.Combine(_tokenFolderPath, $"{username}.txt");
             await File.WriteAllTextAsync(filePath, token);
-            Log.Information("🔑 Token file saved to {FilePath}", filePath);
+            Log.Debug("🔑 Token file saved to {FilePath}", filePath);
         }
         catch (Exception ex)
         {
