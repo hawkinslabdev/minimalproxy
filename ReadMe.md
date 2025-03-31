@@ -1,4 +1,4 @@
-# 🌐 Minimal Proxy for Exact Globe Plus
+# 🌐 Minimal Proxy for internal webservices
 
 A lightweight, easy-to-deploy proxy for Exact Globe Plus services. Provides secure access to your Exact services through a modern API gateway with multiple environment support.
 
@@ -37,19 +37,14 @@ Minimal Proxy creates a secure gateway to your Exact Globe Plus services while a
 ### Step 3: Configure IIS
 
 1. Open IIS Manager
-2. Create a new Application Pool:
-   - Name: `MinimalProxyPool`
-   - .NET CLR Version: `No Managed Code`
-   - Managed pipeline mode: `Integrated`
+2. Create a new Application Pool.
+3. Change the default user for this pool to the Windows-user with the permissions to use the internal service (based on NTLM). 
 
-3. Create a new Website or Application:
+4. Create a new Website or Application:
    - Site name: `MinimalProxy`
-   - Physical path: `C:\inetpub\wwwroot\MinimalProxy` (or your chosen location)
+   - Physical path: `C:\Apps\MinimalProxy` (or your chosen location)
    - Application Pool: `MinimalProxyPool`
    - Binding: Choose appropriate port (default 80) or host name
-
-4. Set proper permissions:
-   - Give `IIS_IUSRS` and your Application Pool identity read/write permissions to the application folder
 
 ### Step 4: Basic Configuration
 
