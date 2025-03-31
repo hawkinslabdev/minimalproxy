@@ -170,6 +170,12 @@ namespace TokenGenerator
                 throw;
             }
         }
+
+        // Make the token folder path accessible
+        public string GetTokenFolderPath()
+        {
+            return _tokenFolderPath;
+        }
     }
 
     class Program
@@ -375,13 +381,10 @@ namespace TokenGenerator
             Console.WriteLine(new string('-', 60));
 
             var config = scope.ServiceProvider.GetRequiredService<AppConfig>();
-            var tokenService = scope.ServiceProvider.GetRequiredService<TokenService>();
+            string tokenFolderPath = tokenService.GetTokenFolderPath();
             
             foreach (var token in tokens)
-            {
-                
-                string tokenFolderPath = typeof(TokenService).GetField("_tokenFolderPath", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(tokenService) as string ?? config.TokensFolder;
-                
+            {                
                 string tokenFilePath = Path.Combine(tokenFolderPath, $"{token.Username}.txt");
                 string tokenFileStatus = File.Exists(tokenFilePath) ? "Available" : "Missing";
 
@@ -409,8 +412,7 @@ namespace TokenGenerator
                 Console.WriteLine($"Username: {username}");
                 Console.WriteLine($"Token: {token}");
                 
-                var service = scope.ServiceProvider.GetRequiredService<TokenService>();
-                string tokenFolderPath = typeof(TokenService).GetField("_tokenFolderPath", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(service) as string ?? config.TokensFolder;
+                string tokenFolderPath = tokenService.GetTokenFolderPath();
                 
                 Console.WriteLine($"Token file: {Path.Combine(tokenFolderPath, $"{username}.txt")}");
             }

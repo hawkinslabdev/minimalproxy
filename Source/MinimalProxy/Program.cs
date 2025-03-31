@@ -21,7 +21,8 @@ Log.Logger = new LoggerConfiguration()
         rollOnFileSizeLimit: true,
         retainedFileCountLimit: 5,
         restrictedToMinimumLevel: Serilog.Events.LogEventLevel.Information,
-        buffered: true)
+        buffered: true,
+        flushToDiskInterval: TimeSpan.FromSeconds(30))
     .MinimumLevel.Information() // Change default from Debug to Information
     .MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Warning)
     .MinimumLevel.Override("System", Serilog.Events.LogEventLevel.Warning)
@@ -56,6 +57,7 @@ var dbPath = Path.Combine(Directory.GetCurrentDirectory(), "auth.db");
 builder.Services.AddDbContext<AuthDbContext>(options => options.UseSqlite($"Data Source={dbPath}"));
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddAuthorization();
+builder.Services.AddHostedService<LogFlusher>();
 
 builder.Services.AddHttpClient("ProxyClient")
     .ConfigurePrimaryHttpMessageHandler(() =>
@@ -506,7 +508,12 @@ else
     Log.Information("🌐 Application is hosted on: {Urls}", serverUrls);
 }
 
-// Now start the application
+app.Lifetime.ApplicationStopping.Register(() => 
+{
+    Log.Information("Application shutting down...");
+    Log.CloseAndFlush();
+});
+
 app.Run();
 try
 {
