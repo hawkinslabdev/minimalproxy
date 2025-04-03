@@ -27,7 +27,7 @@ jobs:
       uses: actions/checkout@v4
       with:
         fetch-depth: 0  # Fetch all history for all branches and tags
-        # token: ${{ secrets.RELEASE_TOKEN }}  # Use a PAT with repo permissions
+        token: ${{ secrets.RELEASE_TOKEN }}  # Use a PAT with repo permissions
     
     # Set up Python for version manipulation
     - name: Set up Python
