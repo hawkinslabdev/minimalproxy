@@ -115,4 +115,4 @@ jobs:
       run: |
         NEW_VERSION=${{ steps.versioning.outputs.NEW_VERSION }}
         echo "Deploying version $NEW_VERSION"
-        unzip "${NEW_VERSION}-Deployment.zip"
+        unzip -o "${NEW_VERSION}-Deployment.zip"
