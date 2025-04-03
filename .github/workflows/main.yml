@@ -1,0 +1,115 @@
+name: Manual Release Deployment
+
+# Controls when the action will run. Workflow runs when manually triggered using the UI or API.
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Type of release'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  create-release:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+    
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+    # Checkout the repository code
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch all history for all branches and tags
+        token: ${{ secrets.RELEASE_TOKEN }}  # Use a PAT with repo permissions
+    
+    # Set up Python for version manipulation
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+    
+    # Install semantic versioning library
+    - name: Install semver
+      run: pip install semver
+    
+    # Determine the new version
+    - name: Calculate new version
+      id: versioning
+      run: |
+        # Get the latest tag
+        LATEST_TAG=$(git describe --tags --abbrev=0)
+        
+        # Use Python to increment the version
+        VERSION=$(python -c "
+        import semver
+        import datetime
+        
+        # Parse the current version
+        current_version = semver.VersionInfo.parse('$LATEST_TAG')
+        
+        # Get current year and month
+        current_year = datetime.datetime.now().year
+        current_month = datetime.datetime.now().month
+        
+        # Increment based on input
+        if '${{ github.event.inputs.release_type }}' == 'major':
+            # For major release, create a new version with the current year and month
+            new_version = semver.VersionInfo(current_year, current_month, 0)
+        elif '${{ github.event.inputs.release_type }}' == 'minor':
+            # For minor release, bump the minor version
+            new_version = current_version.bump_minor()
+        else:
+            # For patch, bump the patch version
+            new_version = current_version.bump_patch()
+        
+        # Format as YYYY.month.version
+        print(f'{new_version.major}.{new_version.minor}.{new_version.patch}')
+        ")
+        
+        echo "NEW_VERSION=$VERSION" >> $GITHUB_OUTPUT
+    
+    # Create and push the new tag
+    - name: Create new tag
+      run: |
+        NEW_TAG=${{ steps.versioning.outputs.NEW_VERSION }}
+        git config user.name "GitHub Release Action"
+        git config user.email "<>"
+        git tag $NEW_TAG
+        git push https://${{ secrets.RELEASE_TOKEN }}@github.com/${{ github.repository }}.git $NEW_TAG
+      env:
+        GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+    
+    # Zip the Deployment folder with the new release number
+    - name: Zip Deployment folder
+      run: |
+        NEW_VERSION=${{ steps.versioning.outputs.NEW_VERSION }}
+        zip -r "${NEW_VERSION}-Deployment.zip" Deployment
+    
+    # Create a GitHub Release with the zipped Deployment folder
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        token: ${{ secrets.RELEASE_TOKEN }}
+        tag_name: ${{ steps.versioning.outputs.NEW_VERSION }}
+        files: |
+          ${{ steps.versioning.outputs.NEW_VERSION }}-Deployment.zip
+        generate_release_notes: true
+    
+    # Deploy the release (placeholder for your specific deployment steps)
+    - name: Deploy to target environment
+      run: |
+        # Add your deployment commands here
+        # For example:
+        # - Copy files to deployment directory
+        # - Run deployment scripts
+        NEW_VERSION=${{ steps.versioning.outputs.NEW_VERSION }}
+        echo "Deploying version $NEW_VERSION"
+        unzip "${NEW_VERSION}-Deployment.zip"
+        # Add any specific deployment steps for your MinimalProxy project
