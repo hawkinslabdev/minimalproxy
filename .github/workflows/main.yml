@@ -4,112 +4,97 @@ on:
   workflow_dispatch:
     inputs:
       release_type:
-        description: 'Type of release'
+        description: 'Type of release (major, minor, patch)'
         required: true
         default: 'patch'
         type: choice
         options:
-          - patch (xxxx.x.1)
-          - minor (xxxx.1.x)
-          - major (2032.x.x)
+          - patch
+          - minor
+          - major
 
 jobs:
   create-release:
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
-    
+
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.x'
-    
+
     - name: Install semver
       run: pip install semver
-    
+
     - name: Calculate new version
       id: versioning
       run: |
-        # Check if any tags exist
-        if ! git tag; then
-          # No tags exist, start with base version
-          LATEST_TAG="$(date +%Y).1.0"
-        else
-          # Get the latest tag
-          LATEST_TAG=$(git describe --tags --abbrev=0)
-        fi
-        
-        # Use Python to increment the version
+        # Get the latest tag or default
+        LATEST_TAG=$(git tag --sort=-v:refname | head -n 1 || echo "$(date +%Y).0.0")
+
+        # Extract input
+        RELEASE_TYPE="${{ github.event.inputs.release_type }}"
+
+        # Calculate new version
         VERSION=$(python -c "
         import semver
         import datetime
-        
-        # Parse the current version
-        current_version = semver.VersionInfo.parse('$LATEST_TAG')
-        
-        # Get current year and month
+
+        input_type = '${{ github.event.inputs.release_type }}'
+        latest = '${LATEST_TAG}'
+
+        # handle first time
+        try:
+            v = semver.VersionInfo.parse(latest)
+        except:
+            v = semver.VersionInfo( datetime.datetime.now().year, 0, 0 )
+
         current_year = datetime.datetime.now().year
-        current_month = datetime.datetime.now().month
-        
-        # Increment based on input
-        if '${{ github.event.inputs.release_type }}' == 'major':
-            # For major (annual) release, increment the year
-            new_version = semver.VersionInfo(current_year + 1, 1, 0)
-        elif '${{ github.event.inputs.release_type }}' == 'minor':
-            # For minor release, increment the month, handling year rollover
-            new_month = current_version.minor + 1
-            new_year = current_version.major
-            
-            # Handle year rollover
-            if new_month > 12:
-                new_month = 1
-                new_year += 1
-            
-            # Create new version with incremented month
-            new_version = semver.VersionInfo(new_year, new_month, 0)
-        else:
-            # For patch (subversion), increment the patch
-            new_version = current_version.bump_patch()
-        
-        # Format as YYYY.month.version
-        print(f'{new_version.major}.{new_version.minor}.{new_version.patch}')
+
+        if input_type == 'major':
+            # ensure year is at least current_year
+            new_major = max(current_year, v.major + 1)
+            new_version = semver.VersionInfo(new_major, 0, 0)
+        elif input_type == 'minor':
+            new_version = semver.VersionInfo(v.major, v.minor + 1, 0)
+        else:  # patch
+            new_version = semver.VersionInfo(v.major, v.minor, v.patch + 1)
+
+        print(new_version)
         ")
-        
-        echo "NEW_VERSION=$VERSION" >> $GITHUB_OUTPUT
-    
-    - name: Create new tag
+
+        echo "new_version=$VERSION" >> $GITHUB_OUTPUT
+
+    - name: Create and push new tag
       run: |
-        NEW_TAG=${{ steps.versioning.outputs.NEW_VERSION }}
+        NEW_TAG=${{ steps.versioning.outputs.new_version }}
         
-        # Delete existing tag if it exists
-        git tag -d "$NEW_TAG" 2>/dev/null || true
-        git push origin ":refs/tags/$NEW_TAG" 2>/dev/null || true
-        
-        # Create and push new tag
         git config user.name github-actions
         git config user.email github-actions@github.com
-        git tag "$NEW_TAG"
-        git push origin "$NEW_TAG"
-    
+
+        git tag -f "$NEW_TAG"
+        git push origin --force "refs/tags/$NEW_TAG"
+
     - name: Zip Deployment folder
       run: |
-        NEW_VERSION=${{ steps.versioning.outputs.NEW_VERSION }}
-        zip -r "${NEW_VERSION}-Deployment.zip" Deployment
-    
+        NEW_TAG=${{ steps.versioning.outputs.new_version }}
+        zip -r "${NEW_TAG}-Deployment.zip" Deployment
+
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v1
       with:
-        tag_name: ${{ steps.versioning.outputs.NEW_VERSION }}
+        tag_name: ${{ steps.versioning.outputs.new_version }}
         files: |
-          ${{ steps.versioning.outputs.NEW_VERSION }}-Deployment.zip
+          ${{ steps.versioning.outputs.new_version }}-Deployment.zip
         generate_release_notes: true
-    
+
     - name: Deploy to target environment
       run: |
-        NEW_VERSION=${{ steps.versioning.outputs.NEW_VERSION }}
-        echo "Deploying version $NEW_VERSION"
-        unzip -o "${NEW_VERSION}-Deployment.zip"
+        NEW_TAG=${{ steps.versioning.outputs.new_version }}
+        echo "Deploying version $NEW_TAG"
+        unzip -o "${NEW_TAG}-Deployment.zip"
