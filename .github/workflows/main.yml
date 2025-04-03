@@ -68,8 +68,13 @@ jobs:
             # For major (annual) release, increment the year
             new_version = semver.VersionInfo(current_year + 1, 1, 0)
         elif '${{ github.event.inputs.release_type }}' == 'minor':
-            # For minor (monthly) release, increment the month
-            new_version = semver.VersionInfo(current_version.major, current_month, 0)
+            # Increment month, handling year rollover
+            new_month = current_version.minor + 1
+            new_year = current_version.major
+            if new_month > 12:
+                new_month = 1
+                new_year += 1
+            new_version = semver.VersionInfo(new_year, new_month, 0)
         else:
             # For patch (subversion), increment the patch
             new_version = current_version.bump_patch()
