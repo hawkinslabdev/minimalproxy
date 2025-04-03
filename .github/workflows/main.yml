@@ -27,7 +27,6 @@ jobs:
       uses: actions/checkout@v4
       with:
         fetch-depth: 0  # Fetch all history for all branches and tags
-        token: ${{ secrets.RELEASE_TOKEN }}  # Use a PAT with repo permissions
     
     # Set up Python for version manipulation
     - name: Set up Python
@@ -79,12 +78,10 @@ jobs:
     - name: Create new tag
       run: |
         NEW_TAG=${{ steps.versioning.outputs.NEW_VERSION }}
-        git config user.name "GitHub Release Action"
-        git config user.email "<>"
+        git config user.name github-actions
+        git config user.email github-actions@github.com
         git tag $NEW_TAG
-        git push https://${{ secrets.RELEASE_TOKEN }}@github.com/${{ github.repository }}.git $NEW_TAG
-      env:
-        GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        git push origin $NEW_TAG
     
     # Zip the Deployment folder with the new release number
     - name: Zip Deployment folder
@@ -96,7 +93,6 @@ jobs:
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v1
       with:
-        token: ${{ secrets.RELEASE_TOKEN }}
         tag_name: ${{ steps.versioning.outputs.NEW_VERSION }}
         files: |
           ${{ steps.versioning.outputs.NEW_VERSION }}-Deployment.zip
@@ -112,4 +108,4 @@ jobs:
         NEW_VERSION=${{ steps.versioning.outputs.NEW_VERSION }}
         echo "Deploying version $NEW_VERSION"
         unzip "${NEW_VERSION}-Deployment.zip"
-        # Add any specific deployment steps for your MinimalProxy project
+        # Add any specific deployment steps for your MinimalSqlReader project
