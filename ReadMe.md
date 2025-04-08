@@ -1,6 +1,6 @@
 # 🌐 Minimal Proxy for internal webservices
 
-A lightweight, easy-to-deploy proxy for Exact Globe Plus services. Provides secure access to your Exact services through a modern API gateway with multiple environment support.
+A lightweight, easy-to-deploy proxy for internal webservices. Provides secure access to your Exact services through a modern API gateway with multiple environment(s) support.
 
 ![Screenshot of Swagger UI](https://raw.githubusercontent.com/hawkinslabdev/minimalproxy/main/Source/example.png)
 
@@ -26,12 +26,12 @@ Minimal Proxy creates a secure gateway to your Exact Globe Plus services while a
 ### Step 1: Prepare the Server
 
 1. Install the .NET 8.0 Hosting Bundle
-2. Ensure IIS is properly configured with Application Pool for .NET Core
+2. Ensure IIS is properly configured
 
 ### Step 2: Deploy the Application
 
 1. Download the latest release or build the application
-2. Create a new folder on your server (e.g., `C:\inetpub\wwwroot\MinimalProxy`)
+2. Create a new folder on your server (e.g., `C:\Apps\MinimalProxy`)
 3. Extract all files to this folder
 
 ### Step 3: Configure IIS
@@ -45,6 +45,7 @@ Minimal Proxy creates a secure gateway to your Exact Globe Plus services while a
    - Physical path: `C:\Apps\MinimalProxy` (or your chosen location)
    - Application Pool: `MinimalProxyPool`
    - Binding: Choose appropriate port (default 80) or host name
+   - Use either the HTTP Rewrite Module or a reverse proxy to enforce HTTPS
 
 ### Step 4: Basic Configuration
 
@@ -131,5 +132,3 @@ MinimalProxy/
 For more detailed documentation or assistance, please contact your system administrator or refer to the internal documentation.
 
 ---
-
-*Updated: March 2025*
