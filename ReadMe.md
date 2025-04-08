@@ -12,6 +12,7 @@ Minimal Proxy creates a secure gateway to your Exact Globe Plus services while a
 - 🌍 Support for multiple environments (test, production, etc.)
 - 📄 Simple configuration through JSON files
 - 📝 Interactive Swagger documentation
+- ♻️ Composite requests
 - 🔄 Automatic request/response handling
 
 ## 📋 Installation Guide for Windows IIS
@@ -119,6 +120,8 @@ MinimalProxy/
 │   │   └── entity.json
 │   ├── Account/
 │   │   └── entity.json
+│   ├── SalesOrder/
+│   │   └── entity.json        # Your composite configuration
 │   └── ...
 ├── environments/              # Environment settings
 │   └── settings.json
