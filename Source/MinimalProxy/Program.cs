@@ -100,6 +100,11 @@ try
         )
     );
 
+    // Configure SSRF protection
+    var urlValidatorPath = Path.Combine(Directory.GetCurrentDirectory(), "environments", "network-access-policy.json");
+    var urlValidator = new UrlValidator(urlValidatorPath);
+    builder.Services.AddSingleton(urlValidator);
+
     // Configure Swagger
     var swaggerSettings = SwaggerConfiguration.ConfigureSwagger(builder);
     builder.Services.AddSingleton<DynamicEndpointDocumentFilter>();
@@ -258,7 +263,8 @@ try
         HttpContext context,
         string env,
         string? catchall,
-        [FromServices] IHttpClientFactory httpClientFactory
+        [FromServices] IHttpClientFactory httpClientFactory,
+        [FromServices] UrlValidator urlValidator
     ) =>
     {
         Log.Information("🌍 Received request: {Path} {Method}", context.Request.Path, context.Request.Method);
@@ -337,6 +343,14 @@ try
             var fullUrl = string.IsNullOrEmpty(remainingPath)
                 ? $"{endpointConfig.Item1}{queryString}"
                 : $"{endpointConfig.Item1}{(encodedPath.StartsWith("(") ? "" : "/")}{encodedPath}{queryString}";
+
+            if (!urlValidator.IsUrlSafe(fullUrl))
+            {
+                Log.Warning("Blocked potentially unsafe URL: {Url}", fullUrl);
+                context.Response.StatusCode = 403;
+                await context.Response.WriteAsJsonAsync(new { error = "URL not allowed" });
+                return;
+            }
 
             var client = httpClientFactory.CreateClient("ProxyClient");
 
