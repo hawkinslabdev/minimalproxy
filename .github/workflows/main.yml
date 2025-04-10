@@ -36,23 +36,24 @@ jobs:
           fi
           RELEASE_TYPE="${{ github.event.inputs.release_type }}"
           VERSION=$(python3 -c '
-            import semver, datetime
-            latest = "'"$LATEST_TAG"'"
-            input_type = "'"$RELEASE_TYPE"'"
-            now = datetime.datetime.now()
-            try:
-                v = semver.VersionInfo.parse(latest)
-            except:
-                v = semver.VersionInfo(now.year, now.month, 0)
-            if input_type == "major":
-                new_major = max(now.year, v.major + 1)
-                new_version = semver.VersionInfo(new_major, 1, 0)
-            elif input_type == "minor":
-                new_version = semver.VersionInfo(v.major, v.minor + 1, 0)
-            else:
-                new_version = semver.VersionInfo(v.major, v.minor, v.patch + 1)
-            print(new_version)
-            ')
+import semver
+import datetime
+latest = "'"$LATEST_TAG"'"
+input_type = "'"$RELEASE_TYPE"'"
+now = datetime.datetime.now()
+try:
+    v = semver.VersionInfo.parse(latest)
+except:
+    v = semver.VersionInfo(now.year, now.month, 0)
+if input_type == "major":
+    new_major = max(now.year, v.major + 1)
+    new_version = semver.VersionInfo(new_major, 1, 0)
+elif input_type == "minor":
+    new_version = semver.VersionInfo(v.major, v.minor + 1, 0)
+else:
+    new_version = semver.VersionInfo(v.major, v.minor, v.patch + 1)
+print(new_version)
+')
           echo "new_version=$VERSION" >> $GITHUB_OUTPUT
       - name: Create and push new tag
         run: |
