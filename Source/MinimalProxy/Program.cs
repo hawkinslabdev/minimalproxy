@@ -9,7 +9,7 @@ using Microsoft.OpenApi.Models;
 using MinimalProxy.Classes;
 using MinimalProxy.Middleware;
 using MinimalProxy.Services;
-using Scalar.AspNetCore;
+using MinimalProxy.Helpers;
 
 // Create log directory
 Directory.CreateDirectory("log");
@@ -22,7 +22,7 @@ Log.Logger = new LoggerConfiguration()
         rollingInterval: RollingInterval.Day,
         fileSizeLimitBytes: 10 * 1024 * 1024,
         rollOnFileSizeLimit: true,
-        retainedFileCountLimit: 5,
+        retainedFileCountLimit: 10,
         restrictedToMinimumLevel: Serilog.Events.LogEventLevel.Information,
         buffered: true,
         flushToDiskInterval: TimeSpan.FromSeconds(30))
@@ -76,12 +76,20 @@ try
             };
         });
 
-    // Register EnvironmentSettings and load endpoints
+    // Register EnvironmentSettings
     builder.Services.AddSingleton<EnvironmentSettings>();
-    var endpointsDirectory = Path.Combine(Directory.GetCurrentDirectory(), "endpoints");
 
-    // Load endpoints BEFORE registering CompositeEndpointHandler
-    var endpointMap = ExtendedEndpointHandler.GetEndpoints(endpointsDirectory);
+    // Load endpoints
+    var endpointsDirectory = Path.Combine(Directory.GetCurrentDirectory(), "endpoints");
+    var endpointMap = EndpointHandler.GetEndpoints(endpointsDirectory);
+
+    // Create sample endpoints if directory is empty
+    if (!endpointMap.Any())
+    {
+        EndpointHandler.CreateSampleEndpoints(endpointsDirectory);
+        // Reload endpoints after creating samples
+        endpointMap = EndpointHandler.GetEndpoints(endpointsDirectory);
+    }
 
     // Register CompositeEndpointHandler with loaded endpoints
     builder.Services.AddSingleton<CompositeEndpointHandler>(provider => 
@@ -127,19 +135,6 @@ try
     });
 
     app.UseSwagger();
-    app.MapScalarApiReference(options =>
-    {
-        options.OpenApiRoutePattern = "/openapi/{documentName}.json";
-        options.EndpointPathPrefix = "/api-docs/{documentName}";
-        options.WithPreferredScheme("Bearer");
-
-        options
-            .WithSidebar(true)
-            .WithHttpBearerAuthentication(bearer =>
-            {
-                bearer.Token = "your-bearer-token";
-            });
-    });
 
     // Initialize Database & Create Default Token if needed
     using (var scope = app.Services.CreateScope())
@@ -206,7 +201,6 @@ try
         // Skip token validation for Swagger routes
         if (path != null && (
             path.StartsWith("/swagger") || 
-            path.StartsWith("/api-docs") || 
             path == "/" ||
             path == "/index.html") ||
             context.Request.Path.StartsWithSegments("/favicon.ico")
@@ -217,11 +211,11 @@ try
         }
         
         // Continue with authentication logic
-        Log.Information("➡️ [{Timestamp}] Incoming request: {Path}", DateTime.UtcNow, context.Request.Path);
+        Log.Information("🔀 [{Timestamp}] Incoming request: {Path}", DateTime.UtcNow, context.Request.Path);
 
         if (!context.Request.Headers.TryGetValue("Authorization", out var providedToken))
         {
-            Log.Warning("❌ Authorization header missing.");
+            Log.Warning("❌ [{Timestamp}] Authorization header missing.",  DateTime.UtcNow);
             context.Response.StatusCode = 401;
             await context.Response.WriteAsJsonAsync(new { error = "Unauthorized" });
             return;
@@ -243,13 +237,13 @@ try
 
         if (!isValid)
         {
-            Log.Warning("❌ Invalid token provided");
+            Log.Warning("❌ [{Timestamp}] Invalid token provided",  DateTime.UtcNow);
             context.Response.StatusCode = 403;
             await context.Response.WriteAsJsonAsync(new { error = "Forbidden" });
             return;
         }
 
-        Log.Information("✅ Authorized request with valid token");
+        Log.Information("✅ [{Timestamp}] Authorized request with valid token",  DateTime.UtcNow);
         await next();
     });
 
@@ -450,13 +444,13 @@ try
             var proxyPath = $"/api/{env}/{endpointName}";
 
             // Perform the rewrite (always)
-            var rewrittenContent = RewriteUrl(originalContent, originalHost, originalPath, proxyHost, proxyPath);
+            var rewrittenContent = UrlHelper.RewriteUrl(originalContent, originalHost, originalPath, proxyHost, proxyPath);
 
             // Fix potential Content-Length mismatch
             context.Response.Headers.Remove("Content-Length");
 
             // Set the content type (fallback if missing)
-            context.Response.ContentType = GetSafeContentType(response);
+            context.Response.ContentType = UrlHelper.GetSafeContentType(response);
 
             // Write the rewritten content
             await context.Response.WriteAsync(rewrittenContent);
@@ -552,88 +546,3 @@ finally
     Log.CloseAndFlush();
 }
 
-// URL rewriting helper method
-string RewriteUrl(string content, string originalHost, string originalPath, string proxyHost, string proxyPath)
-{
-    if (string.IsNullOrWhiteSpace(content)) return content;
-
-    string originalBaseUrl = $"{originalHost}{originalPath}".TrimEnd('/');
-    string proxyBaseUrl = $"{proxyHost}{proxyPath}".TrimEnd('/');
-
-    try
-    {
-        var xml = XDocument.Parse(content);
-
-        foreach (var element in xml.Descendants())
-        {
-            // Replace xml:base manually — it's namespaced
-            var xmlBaseAttr = element.Attribute(XNamespace.Xml + "base");
-            if (xmlBaseAttr != null && xmlBaseAttr.Value.StartsWith(originalBaseUrl, StringComparison.OrdinalIgnoreCase))
-            {
-                xmlBaseAttr.Value = xmlBaseAttr.Value.Replace(originalBaseUrl, proxyBaseUrl, StringComparison.OrdinalIgnoreCase);
-            }
-
-            // Rewrite regular attributes (like href, id, etc.)
-            foreach (var attr in element.Attributes())
-            {
-                if (attr.IsNamespaceDeclaration) continue;
-
-                // ✅ Handle xml:base
-                if (attr.Name.LocalName == "base" && attr.Name.Namespace == XNamespace.Xml &&
-                    attr.Value.StartsWith(originalBaseUrl, StringComparison.OrdinalIgnoreCase))
-                {
-                    attr.Value = attr.Value.Replace(originalBaseUrl, proxyBaseUrl, StringComparison.OrdinalIgnoreCase);
-                    continue;
-                }
-
-                // ✅ Rewrite only if value starts with the original base URL
-                if (attr.Value.StartsWith(originalBaseUrl, StringComparison.OrdinalIgnoreCase))
-                {
-                    attr.Value = attr.Value.Replace(originalBaseUrl, proxyBaseUrl, StringComparison.OrdinalIgnoreCase);
-                }
-
-                // ❌ DO NOT rewrite again if it's already rewritten!
-                else if (attr.Value.StartsWith(proxyBaseUrl, StringComparison.OrdinalIgnoreCase))
-                {
-                    // Already rewritten — skip
-                }
-
-                // ✅ Handle relative hrefs like href="Account(...)"
-                else if (attr.Name.LocalName == "href" &&
-                        !attr.Value.StartsWith("http", StringComparison.OrdinalIgnoreCase) &&
-                        !attr.Value.StartsWith("/", StringComparison.OrdinalIgnoreCase))
-                {
-                    // Only prefix once
-                    attr.Value = $"{proxyPath}/{attr.Value}".TrimEnd('/');
-                }
-            }
-
-
-            // Rewrite element values like <id>
-            if (!element.HasElements && element.Value.StartsWith(originalBaseUrl, StringComparison.OrdinalIgnoreCase))
-            {
-                element.Value = element.Value
-                    .Replace(originalBaseUrl, proxyBaseUrl, StringComparison.OrdinalIgnoreCase)
-                    .Replace(proxyHost, proxyBaseUrl, StringComparison.OrdinalIgnoreCase);
-            }
-        }
-
-        return xml.Declaration?.ToString() + Environment.NewLine + xml.ToString(SaveOptions.DisableFormatting);
-    }
-    catch
-    {
-        // Fallback to regex (for JSON)
-        string escaped = Regex.Escape(originalBaseUrl);
-        return Regex.Replace(content, @$"{escaped}(/[^""'\s]*)?", match =>
-        {
-            var suffix = match.Value.Substring(originalBaseUrl.Length);
-            return proxyBaseUrl + suffix;
-        }, RegexOptions.IgnoreCase);
-    }
-}
-
-// Helper for content type
-string GetSafeContentType(HttpResponseMessage response, string fallback = "application/json")
-{
-    return response.Content?.Headers?.ContentType?.ToString() ?? fallback;
-}

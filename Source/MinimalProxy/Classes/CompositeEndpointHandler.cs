@@ -7,6 +7,7 @@ using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using MinimalProxy.Helpers;
 using Serilog;
 
 public class CompositeEndpointHandler
@@ -24,72 +25,11 @@ public class CompositeEndpointHandler
         _httpClientFactory = httpClientFactory;
         _endpointMap = endpointMap;
         _serverName = serverName;
-        _compositeDefinitions = LoadCompositeDefinitions();
+        _compositeDefinitions = EndpointHandler.GetCompositeDefinitions(endpointMap);
     }
     
     /// <summary>
-    /// Load all composite endpoint definitions from the endpoints directory
-    /// </summary>
-    private Dictionary<string, CompositeDefinition> LoadCompositeDefinitions()
-    {
-        var compositeDefinitions = new Dictionary<string, CompositeDefinition>(StringComparer.OrdinalIgnoreCase);
-        
-        try
-        {
-            string endpointsDirectory = Path.Combine(Directory.GetCurrentDirectory(), "endpoints");
-            if (!Directory.Exists(endpointsDirectory))
-            {
-                Log.Warning("⚠️ Endpoints directory not found: {Directory}", endpointsDirectory);
-                return compositeDefinitions;
-            }
-            
-            // Get all JSON files in the endpoints directory and subdirectories
-            foreach (var file in Directory.GetFiles(endpointsDirectory, "*.json", SearchOption.AllDirectories))
-            {
-                try
-                {
-                    // Read and parse the endpoint definition
-                    var json = File.ReadAllText(file);
-                    var entity = JsonSerializer.Deserialize<ExtendedEndpointEntity>(json, 
-                        new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                    
-                    if (entity != null && entity.Type?.Equals("Composite", StringComparison.OrdinalIgnoreCase) == true 
-                        && entity.CompositeConfig != null)
-                    {
-                        // Extract endpoint name from directory name
-                        var endpointName = Path.GetFileName(Path.GetDirectoryName(file)) ?? "";
-                        
-                        // Skip if no valid name could be extracted
-                        if (string.IsNullOrWhiteSpace(endpointName))
-                        {
-                            Log.Warning("⚠️ Could not determine endpoint name for composite endpoint: {File}", file);
-                            continue;
-                        }
-                        
-                        // Add to composite definitions
-                        compositeDefinitions[endpointName] = entity.CompositeConfig;
-                        Log.Information("✅ Loaded composite endpoint: {Name} with {StepCount} steps", 
-                            endpointName, entity.CompositeConfig.Steps.Count);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Log.Error(ex, "❌ Error parsing composite endpoint file: {File}", file);
-                }
-            }
-            
-            Log.Information("✅ Loaded {Count} composite endpoints", compositeDefinitions.Count);
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "❌ Error loading composite endpoints");
-        }
-        
-        return compositeDefinitions;
-    }
-    
-    /// <summary>
-    /// Process a composite endpoint request
+    /// Process a composite endpoint request with improved error handling
     /// </summary>
     public async Task<IResult> ProcessCompositeEndpointAsync(
         HttpContext context, 
@@ -129,6 +69,9 @@ public class CompositeEndpointHandler
             var executionContext = new ExecutionContext();
             var result = new CompositeResult { Success = true };
             
+            // Create a step tracker to track completed steps
+            var completedSteps = new List<string>();
+            
             // Execute each step in the composite definition
             foreach (var step in compositeDefinition.Steps)
             {
@@ -139,10 +82,37 @@ public class CompositeEndpointHandler
                 {
                     var stepResult = await ExecuteStepAsync(step, requestData, result.StepResults, executionContext, env);
                     result.StepResults[step.Name] = stepResult;
+                    completedSteps.Add(step.Name);
+                }
+                catch (CompositeStepException ex)
+                {
+                    // Step execution failed with a detailed exception
+                    result.Success = false;
+                    result.ErrorStep = ex.StepName;
+                    result.ErrorMessage = ex.Message;
+                    result.ErrorDetail = ex.ErrorDetail;
+                    result.StatusCode = ex.StatusCode;
+                    
+                    Log.Error("❌ Step {StepName} failed with status code {StatusCode}: {ErrorDetail}", 
+                        ex.StepName, ex.StatusCode, ex.ErrorDetail);
+                        
+                    int statusCode = ex.StatusCode >= 400 && ex.StatusCode < 600 ? ex.StatusCode : 500;
+                    
+                    var errorResponse = new
+                    {
+                        success = false,
+                        error = $"Error executing step '{ex.StepName}'",
+                        details = ex.StructuredError ?? ex.ErrorDetail,  // Use structured error if available
+                        step = ex.StepName,
+                        statusCode = ex.StatusCode,
+                        completedSteps
+                    };
+                    
+                    return Results.Json(errorResponse, statusCode: statusCode);
                 }
                 catch (Exception ex)
                 {
-                    // Step execution failed
+                    // Generic exception handling
                     result.Success = false;
                     result.ErrorStep = step.Name;
                     result.ErrorMessage = ex.Message;
@@ -152,13 +122,17 @@ public class CompositeEndpointHandler
                         
                     return Results.BadRequest(new
                     {
+                        success = false,
                         error = $"Error executing step '{step.Name}'",
                         details = ex.Message,
                         step = step.Name,
-                        result
+                        completedSteps
                     });
                 }
             }
+            
+            // Process the result to rewrite URLs before returning
+            RewriteUrlsInResult(result, context, env, endpointName);
             
             Log.Information("✅ Successfully executed composite endpoint: {Endpoint}", endpointName);
             return Results.Ok(result);
@@ -170,9 +144,78 @@ public class CompositeEndpointHandler
                 
             return Results.BadRequest(new
             {
+                success = false,
                 error = "Error processing composite endpoint",
                 details = ex.Message
             });
+        }
+    }
+
+    /// <summary>
+    /// Rewrites URLs in the composite result to use the proxy URL
+    /// </summary>
+    private void RewriteUrlsInResult(CompositeResult result, HttpContext context, string env, string endpointName)
+    {
+        try
+        {
+            // For each step that has endpoints URLs in their metadata
+            foreach (var stepKey in result.StepResults.Keys.ToList())
+            {
+                object stepResult = result.StepResults[stepKey];
+                
+                // Convert to JSON string for processing
+                string jsonString = JsonSerializer.Serialize(stepResult);
+                
+                // Find all the endpoints used in this composite process
+                foreach (var endpoint in _endpointMap)
+                {
+                    // Skip endpoints that are not relevant to this step
+                    if (jsonString.IndexOf(endpoint.Value.Url, StringComparison.OrdinalIgnoreCase) < 0)
+                        continue;
+
+                    // Parse original URL parts for replacement
+                    if (!Uri.TryCreate(endpoint.Value.Url, UriKind.Absolute, out var originalUri))
+                    {
+                        Log.Warning("❌ Could not parse endpoint URL as URI: {Url}", endpoint.Value.Url);
+                        continue;
+                    }
+
+                    var originalHost = $"{originalUri.Scheme}://{originalUri.Host}:{originalUri.Port}";
+                    var originalPath = originalUri.AbsolutePath.TrimEnd('/');
+
+                    // Proxy path = /api/{env}/{endpoint}
+                    var proxyHost = $"{context.Request.Scheme}://{context.Request.Host}";
+                    var proxyPath = $"/api/{env}/{endpoint.Key}";
+
+                    // Apply URL rewriting
+                    jsonString = UrlHelper.RewriteUrl(
+                        jsonString, originalHost, originalPath, proxyHost, proxyPath);
+                }
+                
+                // Convert back to object
+                try
+                {
+                    var options = new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true,
+                        WriteIndented = true
+                    };
+                    
+                    var rewrittenResult = JsonSerializer.Deserialize<object>(jsonString, options);
+                    if (rewrittenResult != null)
+                    {
+                        result.StepResults[stepKey] = rewrittenResult;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning(ex, "Failed to deserialize rewritten JSON for step {StepName}", stepKey);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "❌ Error rewriting URLs in composite result");
         }
     }
     
@@ -302,16 +345,46 @@ public class CompositeEndpointHandler
         // Execute the request
         var response = await client.SendAsync(request);
         
+        // Read the response content now to include in error messages if needed
+        var responseContent = await response.Content.ReadAsStringAsync();
+        
         // Ensure success
         if (!response.IsSuccessStatusCode)
         {
-            var errorContent = await response.Content.ReadAsStringAsync();
-            throw new Exception(
-                $"Error executing step '{step.Name}': {response.StatusCode} - {errorContent}");
+            string errorDetail;
+            object? parsedError = null;
+            
+            try
+            {
+                // Try to parse the response as JSON
+                parsedError = JsonSerializer.Deserialize<object>(responseContent, 
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    
+                // For responses that are already JSON, don't store them as strings
+                // This way they'll be properly serialized in the error response
+                errorDetail = "See structured error details";
+            }
+            catch
+            {
+                // If we can't parse as JSON, use the raw response content
+                parsedError = null;
+                
+                // If it's too long, truncate it
+                errorDetail = responseContent.Length > 200 
+                    ? responseContent.Substring(0, 200) + "..." 
+                    : responseContent;
+            }
+            
+            // Throw a detailed exception that will halt the composite process
+            throw new CompositeStepException(
+                $"Error executing step '{step.Name}': HTTP {(int)response.StatusCode} {response.StatusCode}",
+                step.Name,
+                (int)response.StatusCode,
+                errorDetail,
+                responseContent,
+                parsedError  // Pass the parsed error object if available
+            );
         }
-        
-        // Parse and return the response
-        var responseContent = await response.Content.ReadAsStringAsync();
         
         try
         {

@@ -17,31 +17,6 @@ public class ExtendedEndpointEntity
 }
 
 /// <summary>
-/// Defines a composite endpoint that represents a multi-step API process
-/// </summary>
-public class CompositeDefinition
-{
-    public string Name { get; set; } = string.Empty;
-    public string Description { get; set; } = string.Empty;
-    public List<CompositeStep> Steps { get; set; } = new List<CompositeStep>();
-}
-
-/// <summary>
-/// Represents a step within a composite endpoint process
-/// </summary>
-public class CompositeStep
-{
-    public string Name { get; set; } = string.Empty;
-    public string Endpoint { get; set; } = string.Empty;
-    public string Method { get; set; } = "POST";
-    public string? DependsOn { get; set; }
-    public bool IsArray { get; set; } = false;
-    public string? ArrayProperty { get; set; }
-    public string? SourceProperty { get; set; }
-    public Dictionary<string, string> TemplateTransformations { get; set; } = new();
-}
-
-/// <summary>
 /// Execution context to maintain state between composite step executions
 /// </summary>
 public class ExecutionContext
@@ -76,15 +51,4 @@ public class ExecutionContext
         
         return default;
     }
-}
-
-/// <summary>
-/// Result of a composite endpoint execution
-/// </summary>
-public class CompositeResult
-{
-    public bool Success { get; set; }
-    public Dictionary<string, object> StepResults { get; set; } = new();
-    public string? ErrorStep { get; set; }
-    public string? ErrorMessage { get; set; }
 }

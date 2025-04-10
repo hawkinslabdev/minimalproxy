@@ -26,14 +26,17 @@ public class DynamicEndpointDocumentFilter : IDocumentFilter
     {
         // Get endpoint map
         var endpointsDirectory = Path.Combine(Directory.GetCurrentDirectory(), "endpoints");
-        var endpointMap = ExtendedEndpointHandler.GetEndpoints(endpointsDirectory);
+        var endpointMap = EndpointHandler.GetEndpoints(endpointsDirectory);
         
         // Get allowed environments for parameter description only
         var allowedEnvironments = GetAllowedEnvironments();
 
         // Create paths for each endpoint - but only once, not per environment
-        foreach (var (endpointName, (url, methods, isPrivate, type)) in endpointMap)
+        foreach (var entry in endpointMap)
         {
+            string endpointName = entry.Key;
+            var (url, methods, isPrivate, type) = entry.Value;
+            
             // Skip Swagger/Refresh endpoint
             if (string.Equals(endpointName, "Swagger", StringComparison.OrdinalIgnoreCase))
             {
