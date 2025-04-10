@@ -18,34 +18,33 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.x'
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
 
-    - name: Install semver
-      run: pip install semver
+      - name: Install semver
+        run: pip install semver
 
-    - name: Calculate new version
-      id: versioning
-      run: |
-        LATEST_TAG=$(git tag --sort=-v:refname | head -n 1)
-        if [ -z "$LATEST_TAG" ]; then
-          YEAR=$(date +%Y)
-          MONTH=$(date +%-m)
-          LATEST_TAG="$YEAR.$MONTH.0"
-        fi
+      - name: Calculate new version
+        id: versioning
+        run: |
+          LATEST_TAG=$(git tag --sort=-v:refname | head -n 1)
+          if [ -z "$LATEST_TAG" ]; then
+            YEAR=$(date +%Y)
+            MONTH=$(date +%-m)
+            LATEST_TAG="$YEAR.$MONTH.0"
+          fi
 
-        echo "Latest tag: $LATEST_TAG"
+          RELEASE_TYPE="${{ github.event.inputs.release_type }}"
 
-        RELEASE_TYPE="${{ github.event.inputs.release_type }}"
-
-        VERSION=$(python3 -c "import semver, datetime
+          VERSION=$(python3 -c "
+import semver, datetime
 latest = '$LATEST_TAG'
 input_type = '$RELEASE_TYPE'
 now = datetime.datetime.now()
@@ -53,7 +52,6 @@ try:
     v = semver.VersionInfo.parse(latest)
 except:
     v = semver.VersionInfo(now.year, now.month, 0)
-
 if input_type == 'major':
     new_major = max(now.year, v.major + 1)
     new_version = semver.VersionInfo(new_major, 1, 0)
@@ -61,36 +59,34 @@ elif input_type == 'minor':
     new_version = semver.VersionInfo(v.major, v.minor + 1, 0)
 else:
     new_version = semver.VersionInfo(v.major, v.minor, v.patch + 1)
+print(new_version)
+")
 
-print(new_version)")
-        
-        echo "new_version=$VERSION" >> $GITHUB_OUTPUT
+          echo "new_version=$VERSION" >> $GITHUB_OUTPUT
 
-    - name: Create and push new tag
-      run: |
-        NEW_TAG=${{ steps.versioning.outputs.new_version }}
-        
-        git config user.name github-actions
-        git config user.email github-actions@github.com
+      - name: Create and push new tag
+        run: |
+          NEW_TAG=${{ steps.versioning.outputs.new_version }}
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git tag -f "$NEW_TAG"
+          git push origin --force "refs/tags/$NEW_TAG"
 
-        git tag -f "$NEW_TAG"
-        git push origin --force "refs/tags/$NEW_TAG"
+      - name: Zip Deployment folder
+        run: |
+          NEW_TAG=${{ steps.versioning.outputs.new_version }}
+          zip -r "${NEW_TAG}-Deployment.zip" Deployment
 
-    - name: Zip Deployment folder
-      run: |
-        NEW_TAG=${{ steps.versioning.outputs.new_version }}
-        zip -r "${NEW_TAG}-Deployment.zip" Deployment
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.versioning.outputs.new_version }}
+          files: |
+            ${{ steps.versioning.outputs.new_version }}-Deployment.zip
+          generate_release_notes: true
 
-    - name: Create GitHub Release
-      uses: softprops/action-gh-release@v1
-      with:
-        tag_name: ${{ steps.versioning.outputs.new_version }}
-        files: |
-          ${{ steps.versioning.outputs.new_version }}-Deployment.zip
-        generate_release_notes: true
-
-    - name: Deploy to target environment
-      run: |
-        NEW_TAG=${{ steps.versioning.outputs.new_version }}
-        echo "Deploying version $NEW_TAG"
-        unzip -o "${NEW_TAG}-Deployment.zip"
+      - name: Deploy to target environment
+        run: |
+          NEW_TAG=${{ steps.versioning.outputs.new_version }}
+          echo "Deploying version $NEW_TAG"
+          unzip -o "${NEW_TAG}-Deployment.zip"
