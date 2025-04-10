@@ -150,6 +150,38 @@ public class CompositeEndpointHandler
             });
         }
     }
+    /// <summary>  
+    /// Get or create a shared value based on the template     
+    /// </summary>
+    private string GetOrCreateSharedValue(ExecutionContext context, string valueTemplate)
+    {
+        // Create a context key based on the template
+        var contextKey = $"shared:{valueTemplate}";
+        
+        // Check if we already have a value for this template
+        var existingValue = context.GetVariable<string>(contextKey);
+        if (!string.IsNullOrEmpty(existingValue))
+        {
+            return existingValue;
+        }
+        
+        // Generate a new value based on the template
+        string newValue;
+        switch (valueTemplate.ToLowerInvariant())
+        {
+            case "$guid":
+                newValue = Guid.NewGuid().ToString();
+                break;
+            // Add other shared value types here if needed
+            default:
+                newValue = Guid.NewGuid().ToString(); // Default to GUID
+                break;
+        }
+        
+        // Store the value in the context for reuse
+        context.SetVariable(contextKey, newValue);
+        return newValue;
+    }
 
     /// <summary>
     /// Rewrites URLs in the composite result to use the proxy URL
@@ -420,17 +452,15 @@ public class CompositeEndpointHandler
             var key = transform.Key;
             var valueTemplate = transform.Value;
             
-            switch (valueTemplate.ToLowerInvariant())
-            {
-                case "$guid":
-                    // Generate a new GUID
-                    jsonObj[key] = Guid.NewGuid().ToString();
-                    break;
-                    
-                case "$requestid":
-                    // Use the request ID from the context
-                    jsonObj[key] = context.RequestId;
-                    break;
+        switch (valueTemplate.ToLowerInvariant())
+        {
+            case "$guid":
+                jsonObj[key] = GetOrCreateSharedValue(context, valueTemplate);
+                break;
+                
+            case "$requestid":
+                jsonObj[key] = context.RequestId;
+                break;
                     
                 default:
                     // Handle variables and previous results references

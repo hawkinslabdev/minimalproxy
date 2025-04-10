@@ -211,11 +211,11 @@ try
         }
         
         // Continue with authentication logic
-        Log.Information("🔀 [{Timestamp}] Incoming request: {Path}", DateTime.UtcNow, context.Request.Path);
+        Log.Information("🔀 Incoming request: {Path}", context.Request.Path);
 
         if (!context.Request.Headers.TryGetValue("Authorization", out var providedToken))
         {
-            Log.Warning("❌ [{Timestamp}] Authorization header missing.",  DateTime.UtcNow);
+            Log.Warning("❌ Authorization header missing.");
             context.Response.StatusCode = 401;
             await context.Response.WriteAsJsonAsync(new { error = "Unauthorized" });
             return;
@@ -237,13 +237,13 @@ try
 
         if (!isValid)
         {
-            Log.Warning("❌ [{Timestamp}] Invalid token provided",  DateTime.UtcNow);
+            Log.Warning("❌ Invalid token provided");
             context.Response.StatusCode = 403;
             await context.Response.WriteAsJsonAsync(new { error = "Forbidden" });
             return;
         }
 
-        Log.Information("✅ [{Timestamp}] Authorized request with valid token",  DateTime.UtcNow);
+        Log.Information("✅ Authorized request with valid token");
         await next();
     });
 
@@ -261,7 +261,7 @@ try
         [FromServices] IHttpClientFactory httpClientFactory
     ) =>
     {
-        Log.Information("🌍 [{Timestamp}] Received request: {Path} {Method}", DateTime.UtcNow, context.Request.Path, context.Request.Method);
+        Log.Information("🌍 Received request: {Path} {Method}", context.Request.Path, context.Request.Method);
 
         try
         {

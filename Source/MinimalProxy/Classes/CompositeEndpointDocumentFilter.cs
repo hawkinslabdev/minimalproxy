@@ -41,7 +41,7 @@ public class CompositeEndpointDocumentFilter : IDocumentFilter
                 // Create the POST operation for the composite endpoint
                 var operation = new OpenApiOperation
                 {
-                    Tags = new List<OpenApiTag> { new OpenApiTag { Name = "Composite Endpoints" } },
+                    Tags = new List<OpenApiTag> { new OpenApiTag { Name = "Composite" } },
                     Summary = $"Execute {endpointName} composite endpoint",
                     Description = definition.Description ?? $"Executes the {endpointName} composite process with multiple steps",
                     OperationId = $"composite_{endpointName}".Replace(" ", "_"),
