@@ -34,39 +34,48 @@ jobs:
     - name: Calculate new version
       id: versioning
       run: |
-        # Get the latest tag or default
-        LATEST_TAG=$(git tag --sort=-v:refname | head -n 1 || echo "$(date +%Y).0.0")
+        # Get the latest tag
+        LATEST_TAG=$(git tag --sort=-v:refname | head -n 1)
+
+        # If no tags exist, fall back to current year and month
+        if [ -z "$LATEST_TAG" ]; then
+          YEAR=$(date +%Y)
+          MONTH=$(date +%-m)
+          LATEST_TAG="$YEAR.$MONTH.0"
+        fi
+
+        echo "Latest tag: $LATEST_TAG"
 
         # Extract input
         RELEASE_TYPE="${{ github.event.inputs.release_type }}"
 
         # Calculate new version
         VERSION=$(python -c "
-        import semver
-        import datetime
+import semver
+import datetime
 
-        input_type = '${{ github.event.inputs.release_type }}'
-        latest = '${LATEST_TAG}'
+input_type = '${{ github.event.inputs.release_type }}'
+latest = '${LATEST_TAG}'
 
-        # handle first time
-        try:
-            v = semver.VersionInfo.parse(latest)
-        except:
-            v = semver.VersionInfo( datetime.datetime.now().year, 0, 0 )
+try:
+    v = semver.VersionInfo.parse(latest)
+except:
+    now = datetime.datetime.now()
+    v = semver.VersionInfo(now.year, now.month, 0)
 
-        current_year = datetime.datetime.now().year
+now = datetime.datetime.now()
 
-        if input_type == 'major':
-            # ensure year is at least current_year
-            new_major = max(current_year, v.major + 1)
-            new_version = semver.VersionInfo(new_major, 0, 0)
-        elif input_type == 'minor':
-            new_version = semver.VersionInfo(v.major, v.minor + 1, 0)
-        else:  # patch
-            new_version = semver.VersionInfo(v.major, v.minor, v.patch + 1)
+if input_type == 'major':
+    # Bump year and reset month and patch
+    new_major = max(now.year, v.major + 1)
+    new_version = semver.VersionInfo(new_major, 1, 0)
+elif input_type == 'minor':
+    new_version = semver.VersionInfo(v.major, v.minor + 1, 0)
+else:
+    new_version = semver.VersionInfo(v.major, v.minor, v.patch + 1)
 
-        print(new_version)
-        ")
+print(new_version)
+")
 
         echo "new_version=$VERSION" >> $GITHUB_OUTPUT
 
