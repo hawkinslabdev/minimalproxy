@@ -46,16 +46,14 @@ jobs:
 
         echo "Latest tag: $LATEST_TAG"
 
-        # Extract input
         RELEASE_TYPE="${{ github.event.inputs.release_type }}"
 
-        # Calculate new version
-        VERSION=$(python -c "
+        VERSION=$(python3 <<EOF
 import semver
 import datetime
 
-input_type = '${{ github.event.inputs.release_type }}'
-latest = '${LATEST_TAG}'
+input_type = "$RELEASE_TYPE"
+latest = "$LATEST_TAG"
 
 try:
     v = semver.VersionInfo.parse(latest)
@@ -66,7 +64,6 @@ except:
 now = datetime.datetime.now()
 
 if input_type == 'major':
-    # Bump year and reset month and patch
     new_major = max(now.year, v.major + 1)
     new_version = semver.VersionInfo(new_major, 1, 0)
 elif input_type == 'minor':
@@ -75,7 +72,8 @@ else:
     new_version = semver.VersionInfo(v.major, v.minor, v.patch + 1)
 
 print(new_version)
-")
+EOF
+)
 
         echo "new_version=$VERSION" >> $GITHUB_OUTPUT
 
