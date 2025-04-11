@@ -164,7 +164,7 @@ try
             else
             {
                 Log.Information("✅ Using existing tokens. Total active tokens: {Count}", activeTokens.Count());
-                Log.Information("📁 Tokens are available in the tokens directory");
+                Log.Warning("📁 Tokens are available in the tokens directory. Remove them as soon as possible!");
             }
         }
         catch (Exception ex)

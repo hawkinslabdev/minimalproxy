@@ -17,10 +17,8 @@ public class UrlValidator
     {
         _hostCache = new ConcurrentDictionary<string, bool>();
 
-        // Ensure the configuration file exists
         EnsureConfigFileExists(configPath);
 
-        // Load configuration
         var config = JsonSerializer.Deserialize<HostConfig>(
             File.ReadAllText(configPath), 
             new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
@@ -55,6 +53,9 @@ public class UrlValidator
             string.Join(", ", _allowedHosts));
     }
 
+    /// <summary>
+    /// Discovers allowed hosts based on the local machine name and network interfaces.
+    /// </summary>
     private List<string> DiscoverAllowedHosts()
     {
         var discoveredHosts = new HashSet<string>();
@@ -131,39 +132,42 @@ public class UrlValidator
         return string.Empty;
     }
 
+    /// <summary>  
+    /// Validates if the given URL is safe to access.  
+    /// </summary>
     public bool IsUrlSafe(string url)
     {
         try
         {
             var uri = new Uri(url);
-            string host = uri.Host;
-
-            // Remove port if present
-            host = host.Split(':')[0];
-
+            string host = uri.Host.Split(':')[0];
+            
             Log.Debug("🕵️ Validating URL: {Url}", url);
             Log.Debug("🏠 Host to validate: {Host}", host);
-            Log.Debug("✅ Allowed Hosts: {AllowedHosts}", string.Join(", ", _allowedHosts));
-
-            // Check if host is in allowed hosts
+            
+            var addresses = Dns.GetHostAddresses(host);
+            Log.Debug("🌐 Resolved Addresses: {Addresses}", 
+                string.Join(", ", addresses.Select(a => a.ToString())));
+            
+            bool anyIpBlocked = addresses.Any(ip => 
+                _blockedRanges.Any(range => IsIpInRange(ip, range)));
+                
+            if (anyIpBlocked)
+            {
+                Log.Error("❌ Host {Host} resolves to blocked IP address", host);
+                return false;
+            }
+            
             bool isHostAllowed = _allowedHosts.Any(allowed => 
                 string.Equals(host, allowed, StringComparison.OrdinalIgnoreCase));
-
+                
             if (!isHostAllowed)
             {
                 Log.Error("❌ Host {Host} is NOT in allowed hosts", host);
                 return false;
             }
-
-            // Resolve and validate IP
-            var addresses = Dns.GetHostAddresses(host);
-            Log.Debug("🌐 Resolved Addresses: {Addresses}", 
-                string.Join(", ", addresses.Select(a => a.ToString())));
-
-            bool isIpAllowed = addresses.All(ip => 
-                !_blockedRanges.Any(range => IsIpInRange(ip, range)));
-
-            return isIpAllowed;
+            
+            return true;
         }
         catch (Exception ex)
         {
@@ -171,25 +175,29 @@ public class UrlValidator
             return false;
         }
     }
+
+    /// <summary>
+    /// Validates if the given host is allowed based on the configuration.
+    /// </summary>
     public bool IsHostAllowed(string host)
     {
-        // Check cache first
         if (_hostCache.TryGetValue(host, out bool isAllowed))
             return isAllowed;
 
-        // Validate host against allowed patterns
         if (IsHostPatternAllowed(host))
         {
             _hostCache[host] = true;
             return true;
         }
 
-        // Validate host against DNS and IP ranges
         bool isValid = ValidateHost(host);
         _hostCache[host] = isValid;
         return isValid;
     }
     
+    /// <summary>
+    /// Ensures that the configuration file exists. If not, creates a default one.
+    /// </summary>
     private void EnsureConfigFileExists(string configPath)
     {
         if (!File.Exists(configPath))
@@ -199,6 +207,9 @@ public class UrlValidator
         }
     }
 
+    /// <summary>
+    /// Validates the host against the allowed hosts and blocked IP ranges.
+    /// </summary>
     private bool ValidateHost(string host)
     {
          // Resolve DNS and check IP ranges
@@ -206,12 +217,18 @@ public class UrlValidator
         return addresses.All(IsIpAllowed);
     }
 
+    /// <summary>
+    /// Checks if the host matches any of the allowed patterns.
+    /// </summary>
     private bool IsHostPatternAllowed(string host)
     {
         return _allowedHosts.Any(pattern => 
             MatchHostPattern(host, pattern));
     }
 
+    /// <summary>
+    /// Helper method to match host against a pattern.
+    /// </summary>
     private bool MatchHostPattern(string host, string pattern)
     {
         // Compiled regex for performance
@@ -223,9 +240,11 @@ public class UrlValidator
         return regex.IsMatch(host);
     }
 
+    /// <summary>
+    /// Resolves the DNS for the given host and caches the result.
+    /// </summary>
     private IPAddress[] ResolveDnsWithCache(string host)
     {
-        // DNS resolution with caching
         return _dnsCache.GetOrAdd(host, key => 
         {
             try 
@@ -239,12 +258,18 @@ public class UrlValidator
         });
     }
 
+    /// <summary>
+    /// Helper method to check if the given IP address is allowed based on the blocked ranges.
+    /// </summary>
     private bool IsIpAllowed(IPAddress ip)
     {
         // Check against blocked ranges
         return !_blockedRanges.Any(range => IsIpInRange(ip, range));
     }
 
+    /// <summary>
+    /// Checks if the given IP address is within the specified CIDR range.
+    /// </summary>
     private bool IsIpInRange(IPAddress ip, string cidrRange)
     {
         try
