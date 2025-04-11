@@ -6,14 +6,15 @@ A lightweight, easy-to-deploy proxy for internal webservices. Provides secure ac
 
 ## 🚀 What is Minimal Proxy?
 
-Minimal Proxy creates a secure gateway to your Exact Globe Plus services while adding:
+Minimal Proxy creates a secure gateway to your internal webservices (e.g. for Exact Globe+) services while adding:
 
 - 🔐 Secure token-based authentication
 - 🌍 Support for multiple environments (test, production, etc.)
 - 📄 Simple configuration through JSON files
 - 📝 Interactive Swagger documentation
-- ♻️ Composite requests
+- ♻️ Composite requests for complex operations
 - 🔄 Automatic request/response handling
+- 🔍 Detailed logging with automatic flushing
 
 ## 📋 Installation Guide for Windows IIS
 
@@ -34,12 +35,13 @@ Minimal Proxy creates a secure gateway to your Exact Globe Plus services while a
 1. Download the latest release or build the application
 2. Create a new folder on your server (e.g., `C:\Apps\MinimalProxy`)
 3. Extract all files to this folder
+4. Use the included `.publish.ps1` script for automated deployment (optional)
 
 ### Step 3: Configure IIS
 
 1. Open IIS Manager
-2. Create a new Application Pool.
-3. Change the default user for this pool to the Windows-user with the permissions to use the internal service (based on NTLM). 
+2. Create a new Application Pool
+3. Change the default user for this pool to the Windows-user with the permissions to use the internal service (based on NTLM)
 
 4. Create a new Website or Application:
    - Site name: `MinimalProxy`
@@ -90,6 +92,7 @@ The Token Generator supports various command-line options:
 ```
 TokenGenerator.exe -h                       Show help message
 TokenGenerator.exe -d "path\to\auth.db"     Specify database location
+TokenGenerator.exe -t "tokens/folder"       Specify token output folder
 TokenGenerator.exe username                 Generate token for user
 ```
 
@@ -102,12 +105,110 @@ http://your-server/api/600/Items   (For environment 600)
 http://your-server/api/700/Items   (For environment 700)
 ```
 
+## 🧩 Working with Composite Endpoints
+
+Composite endpoints allow you to chain multiple operations in a single request:
+
+1. Create private endpoints for your internal services (like SalesOrderLine and SalesOrderHeader):
+
+```json
+{
+  "Url": "http://your-server:8020/services/Exact.Entity.REST.EG/SalesOrderLine", 
+  "Methods": ["POST"],
+  "IsPrivate": true
+}
+```
+
+3. Then create a composite endpoint configuration in the endpoints folder (example: endpoints/SalesOrder/entity.json):
+
+```json
+{
+  "Type": "Composite",
+  "Url": "http://localhost:8020/services/Exact.Entity.REST.EG",
+  "Methods": ["POST"],
+  "CompositeConfig": {
+    "Name": "SalesOrder",
+    "Description": "Creates a complete sales order with multiple order lines and a header",
+    "Steps": [
+      {
+        "Name": "CreateOrderLines",
+        "Endpoint": "SalesOrderLine",
+        "Method": "POST",
+        "IsArray": true,
+        "ArrayProperty": "Lines",
+        "TemplateTransformations": {
+          "TransactionKey": "$guid"
+        }
+      },
+      {
+        "Name": "CreateOrderHeader",
+        "Endpoint": "SalesOrderHeader",
+        "Method": "POST",
+        "SourceProperty": "Header",
+        "TemplateTransformations": {
+          "TransactionKey": "$prev.CreateOrderLines.0.d.TransactionKey"
+        }
+      }
+    ]
+  }
+}
+```
+
+2. Use the endpoint with a single request containing all necessary data:
+
+```http
+POST http://your-server/api/600/composite/SalesOrder
+Content-Type: application/json
+
+{
+  "Header": {
+    "OrderDebtor": "60093",
+    "YourReference": "Connect async"
+  },
+  "Lines": [
+    {
+      "Itemcode": "BEK0001",
+      "Quantity": 2,
+      "Price": 0
+    },
+    {
+      "Itemcode": "BEK0002",
+      "Quantity": 4,
+      "Price": 0
+    }
+  ]
+}
+```
+
+If either of the (3) requests fail, the chain of requests will halt immediately, returning detailed error information including which step failed, the error message, and any information returned from the proxied service.
+
+## 🛡️ Network Protection
+
+Configure URL validation and network security by editing `environments/network-access-policy.json`:
+
+```json
+{
+  "allowedHosts": [
+    "localhost",
+    "127.0.0.1",
+    "your-internal-server.domain"
+  ],
+  "blockedIpRanges": [
+    "10.0.0.0/8",
+    "172.16.0.0/12",
+    "192.168.0.0/16",
+    "169.254.0.0/16"
+  ]
+}
+```
+
 ## 🔧 Troubleshooting
 
 - **Application Won't Start**: Check Application Pool settings and permissions
 - **Can't Connect to Database**: Verify the path to `auth.db` is correct and writable
 - **Authentication Errors**: Ensure you're using a valid token with the Bearer prefix
 - **Missing Endpoints**: Confirm all JSON configurations in the `endpoints` folder
+- **Network Access Issues**: Check your `network-access-policy.json` configuration
 
 ## 📁 Directory Structure
 
@@ -121,10 +222,11 @@ MinimalProxy/
 │   ├── Account/
 │   │   └── entity.json
 │   ├── SalesOrder/
-│   │   └── entity.json        # Your composite configuration
+│   │   └── entity.json        # Composite configuration
 │   └── ...
 ├── environments/              # Environment settings
-│   └── settings.json
+│   ├── settings.json
+│   └── network-access-policy.json
 ├── tools/                     # Utility tools
 │   └── TokenGenerator/        # Token management utility
 └── log/                       # Application logs
