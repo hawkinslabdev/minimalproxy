@@ -232,8 +232,6 @@ MinimalProxy/
 └── log/                       # Application logs
 ```
 
----
-
 ## ✨ Credits
 Built with ❤️ using:
 - [ASP.NET Core](https://learn.microsoft.com/en-us/aspnet/core/)
