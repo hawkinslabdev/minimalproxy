@@ -232,10 +232,12 @@ MinimalProxy/
 └── log/                       # Application logs
 ```
 
-## 📘 Need Help?
-
-For more detailed documentation or assistance, please contact your system administrator or refer to the internal documentation.
-
 ---
+
+## ✨ Credits
+Built with ❤️ using:
+- [ASP.NET Core](https://learn.microsoft.com/en-us/aspnet/core/)
+- [Serilog](https://serilog.net/)
+- [SQLite](https://www.sqlite.org/index.html)
 
 Feel free to submit a PR if you'd like to contribute.
