@@ -14,7 +14,7 @@ Minimal Proxy creates a secure gateway to your internal webservices (e.g. for Ex
 - 📝 Interactive Swagger documentation
 - ♻️ Composite requests for complex operations
 - 🔄 Automatic request/response handling
-- 🔍 Detailed logging with automatic flushing
+- 🔍 Detailed logging/tracing with automatic flushing
 
 ## 📋 Installation Guide for Windows IIS
 
@@ -237,3 +237,5 @@ MinimalProxy/
 For more detailed documentation or assistance, please contact your system administrator or refer to the internal documentation.
 
 ---
+
+Feel free to submit a PR if you'd like to contribute.
