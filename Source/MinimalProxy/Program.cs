@@ -43,7 +43,7 @@ Log.Logger = new LoggerConfiguration()
          logEvent.Properties["RequestPath"].ToString().Contains("/index.html")))
     .CreateLogger();
 
-Log.Information("✅ Logging initialized successfully");
+Log.Information("🔍 Logging initialized successfully");
 
 try
 {
@@ -102,6 +102,7 @@ try
     // Add services
     builder.Services.AddControllers();
     builder.Services.AddEndpointsApiExplorer();
+    builder.Services.AddProxyTrafficLogging(builder.Configuration);
 
     var config = builder.Configuration;
 
@@ -226,6 +227,9 @@ try
     });
 
     app.UseSwagger();
+
+    app.UseMiddleware<ProxyTrafficLoggerMiddleware>();
+
 
     // Initialize Database & Create Default Token if needed
     using (var scope = app.Services.CreateScope())
