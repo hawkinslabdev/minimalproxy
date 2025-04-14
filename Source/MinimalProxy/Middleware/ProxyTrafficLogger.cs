@@ -940,8 +940,17 @@ public static class ProxyTrafficLoggerExtensions
         // Only use middleware if enabled
         if (options?.Value.Enabled == true)
         {
-            app.UseMiddleware<ProxyTrafficLoggerMiddleware>();
-            Log.Debug("🔍 Proxy traffic logging middleware enabled");
+            // Check if the Channel service is registered
+            var channel = app.ApplicationServices.GetService<Channel<ProxyTrafficLogEntry>>();
+            if (channel != null)
+            {
+                app.UseMiddleware<ProxyTrafficLoggerMiddleware>();
+                Log.Debug("🔍 Proxy traffic logging middleware enabled");
+            }
+            else
+            {
+                Log.Debug("⚠️ Proxy traffic logging middleware not enabled because required services are not registered");
+            }
         }
         
         return app;

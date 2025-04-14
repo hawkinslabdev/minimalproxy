@@ -193,6 +193,7 @@ try
     app.UseResponseCompression();
     app.UseExceptionHandlingMiddleware();
     app.UseSecurityHeaders();
+    app.UseProxyTrafficLogging();
     
     // Replace custom middleware with rate limiting middleware
     // app.UseRequestThrottling(requestsPerMinute: 60);
@@ -227,9 +228,6 @@ try
     });
 
     app.UseSwagger();
-
-    app.UseMiddleware<ProxyTrafficLoggerMiddleware>();
-
 
     // Initialize Database & Create Default Token if needed
     using (var scope = app.Services.CreateScope())
